@@ -454,8 +454,8 @@
     </div>
 
     <div class="btn-row">
-      <button class="mc-btn mc-btn-blue mc-btn-install" id="install-btn" style="display:none;" onclick="installApp()">📱 添加到桌面</button>
-      <button class="mc-btn mc-btn-blue mc-btn-install" id="ios-install-btn" style="display:none;" onclick="toggleIOSHint()">📱 添加到桌面</button>
+      <button class="mc-btn mc-btn-blue mc-btn-install" id="install-btn" style="display:none;">📱 添加到桌面</button>
+      <button class="mc-btn mc-btn-blue mc-btn-install" id="ios-install-btn" style="display:none;">📱 添加到桌面</button>
     </div>
   </div>
 
@@ -466,8 +466,8 @@
   <div class="install-box">
     <span class="install-icon">📦</span>
     <span class="install-text">把「元宝学习小世界」添加到桌面，随时学习！</span>
-    <button class="mc-btn mc-btn-green" onclick="installApp()">安装</button>
-    <button class="mc-btn mc-btn-brown" onclick="dismissBanner()">✕</button>
+    <button class="mc-btn mc-btn-green" id="banner-install-btn">安装</button>
+    <button class="mc-btn mc-btn-brown" id="banner-dismiss-btn">✕</button>
   </div>
 </div>
 
@@ -481,6 +481,16 @@
 </div>
 
 <script>
+// ============================================================
+//  启动日志
+// ============================================================
+console.log('[启动] 元宝学习小世界 加载中...');
+if (typeof HanziWriter === 'undefined') {
+  console.error('[启动] ❌ HanziWriter 未加载！CDN 可能不可用');
+} else {
+  console.log('[启动] ✅ HanziWriter 加载成功，版本:', HanziWriter.version || '未知');
+}
+
 // ============================================================
 //  10 个主题
 // ============================================================
@@ -969,14 +979,17 @@ const controls   = document.getElementById('controls');
 const charTarget = document.getElementById('character-target');
 
 function showChar(char) {
+  console.log('[showChar] 尝试显示汉字:', char);
   const info = DB[char];
   errorMsg.textContent = '';
   if (info) {
+    console.log('[showChar] 找到数据:', info);
     controls.style.display = 'flex';
-    pinyinShow.textContent = info.pinyin;
-    wordsShow.innerHTML = info.words.map(w => `<span class="word-block">${w}</span>`).join('');
+    pinyinShow.textContent = info.p;
+    wordsShow.innerHTML = info.w.map(w => `<span class="word-block">${w}</span>`).join('');
     renderWriter(char);
   } else {
+    console.warn('[showChar] 数据库未找到汉字:', char);
     controls.style.display = 'none';
     pinyinShow.textContent = '';
     wordsShow.innerHTML = '';
@@ -986,38 +999,79 @@ function showChar(char) {
   }
 }
 
-// 输入事件（每次输入立即响应）
-charInput.addEventListener('input', function() {
-  const val = this.value.trim();
-  if (val.length > 0) showChar(val[0]);
-});
+function resetDisplay() {
+  console.log('[resetDisplay] 重置显示');
+  controls.style.display = 'none';
+  pinyinShow.textContent = '';
+  wordsShow.innerHTML = '';
+  errorMsg.textContent = '';
+  charTarget.innerHTML = '<div class="placeholder-char">字</div>';
+  writer = null;
+}
 
-// 回车确认
-charInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const val = this.value.trim();
-    if (val.length > 0) showChar(val[0]);
-    this.blur();
-    setTimeout(() => this.focus(), 50);
+// 输入事件（只用 input 事件，避免 keypress/keydown 重复触发）
+charInput.addEventListener('input', function() {
+  console.log('[输入事件] 触发，值:', this.value);
+  const val = this.value.trim();
+  if (val.length > 0) {
+    showChar(val[0]);
+  } else {
+    // 清空状态，显示占位符
+    resetDisplay();
   }
 });
 
 function renderWriter(char) {
+  console.log('[renderWriter] 创建汉字:', char);
+  
+  // 检查 HanziWriter 是否可用
+  if (typeof HanziWriter === 'undefined') {
+    console.error('[renderWriter] ❌ HanziWriter 未定义，无法创建');
+    errorMsg.textContent = '汉字书写库加载失败，请刷新页面重试';
+    return;
+  }
+  
   const theme = pickTheme();
   charTarget.innerHTML = '';
-  writer = HanziWriter.create('character-target', char, {
-    width: 260, height: 260, padding: 12,
-    showOutline: true, showCharacter: false,
-    strokeColor: theme.strokeColor,
-    outlineColor: theme.outlineColor,
-    strokeAnimationSpeed: 1,
-    delayBetweenStrokes: 150,
-    onLoadCharDataSuccess: function() { writer.animateCharacter(); },
-    onLoadCharDataError: function() {
-      errorMsg.textContent = '笔顺数据加载失败，请检查网络';
-    }
-  });
+  
+  // 检测是否为移动端，使用合适的尺寸
+  const isMobile = window.innerWidth <= 480;
+  const size = isMobile ? 220 : 260;
+  const padding = isMobile ? 10 : 12;
+  
+  console.log('[renderWriter] 尺寸:', size, '移动端:', isMobile);
+  
+  // 清理旧的 writer 实例
+  if (writer) {
+    writer = null;
+  }
+  
+  try {
+    writer = HanziWriter.create('character-target', char, {
+      width: size,
+      height: size,
+      padding: padding,
+      showOutline: true,
+      showCharacter: false,
+      strokeColor: theme.strokeColor,
+      outlineColor: theme.outlineColor,
+      strokeAnimationSpeed: 1,
+      delayBetweenStrokes: 150
+    });
+    
+    // HanziWriter 3.x 会自动加载数据，成功后触发动画
+    // 等待一小段时间让 HanziWriter 完成初始化
+    setTimeout(function() {
+      if (writer && writer.animateCharacter) {
+        console.log('[renderWriter] 开始笔顺动画');
+        writer.animateCharacter();
+      }
+    }, 300);
+    
+  } catch(err) {
+    console.error('[renderWriter] 创建 writer 失败:', err);
+    errorMsg.textContent = '汉字展示初始化失败';
+  }
 }
 
 document.getElementById('btn-replay').addEventListener('click', function() {
@@ -1028,10 +1082,12 @@ document.getElementById('btn-show').addEventListener('click', function() {
 });
 
 // ============================================================
-//  PWA 安装
+//  PWA 安装（使用 addEventListener）
 // ============================================================
 let deferredPrompt = null;
+
 window.addEventListener('beforeinstallprompt', function(e) {
+  console.log('[PWA] beforeinstallprompt 事件触发');
   e.preventDefault();
   deferredPrompt = e;
   document.getElementById('install-btn').style.display = 'inline-flex';
@@ -1039,6 +1095,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
 });
 
 function installApp() {
+  console.log('[PWA] 触发安装');
   document.getElementById('install-banner').style.display = 'none';
   if (deferredPrompt) {
     deferredPrompt.prompt();
@@ -1049,6 +1106,7 @@ function installApp() {
   }
 }
 function dismissBanner() {
+  console.log('[PWA] 关闭横幅');
   document.getElementById('install-banner').style.display = 'none';
 }
 
@@ -1059,9 +1117,24 @@ if (isIOS() && !isStandalone()) {
   document.getElementById('ios-install-btn').style.display = 'inline-flex';
 }
 function toggleIOSHint() {
+  console.log('[PWA] 切换 iOS 提示');
   var hint = document.getElementById('ios-hint');
   hint.style.display = hint.style.display === 'flex' ? 'none' : 'flex';
 }
+
+// 使用 addEventListener 绑定安装按钮
+document.getElementById('install-btn').addEventListener('click', function() {
+  installApp();
+});
+document.getElementById('ios-install-btn').addEventListener('click', function() {
+  toggleIOSHint();
+});
+document.getElementById('banner-install-btn').addEventListener('click', function() {
+  installApp();
+});
+document.getElementById('banner-dismiss-btn').addEventListener('click', function() {
+  dismissBanner();
+});
 document.addEventListener('click', function(e) {
   var hint = document.getElementById('ios-hint');
   if (hint.style.display === 'flex' && !e.target.closest('#ios-hint') && !e.target.closest('#ios-install-btn')) {
