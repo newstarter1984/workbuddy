@@ -3,1062 +3,1135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>汉字笔顺展示</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="元宝学习小世界">
+  <meta name="theme-color" content="#4a8c2a">
+  <link rel="manifest" href="./manifest.json">
+  <title>元宝学习小世界</title>
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    /* ===== 像素字体模拟 ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    :root {
+      --sky-top: #87CEEB;
+      --sky-bot: #c5e8f7;
+      --ground: #4a8c2a;
+      --dirt: #8B6914;
+      --stone: #7a7a7a;
+      --ui-bg: rgba(30,20,10,0.82);
+      --ui-border: #a08040;
+      --ui-border2: #503010;
+      --text-main: #fffde0;
+      --text-accent: #ffe040;
+      --stroke-color: #ffe040;
+      --outline-color: #335544;
+      --btn-green: #4caf50;
+      --btn-brown: #8B6914;
+      --pixel: 3px; /* block border size */
     }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
       min-height: 100vh;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      color: #fff;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .header h1 {
-      font-size: 1.5rem;
-      color: #e2e2e2;
-      font-weight: 300;
-    }
-
-    .input-container {
-      width: 100%;
-      max-width: 500px;
-      margin-bottom: 30px;
-    }
-
-    .input-label {
-      display: block;
-      font-size: 0.9rem;
-      color: #a0a0a0;
-      margin-bottom: 8px;
-    }
-
-    .char-input {
-      width: 100%;
-      padding: 18px 24px;
-      font-size: 2.2rem;
-      border: 3px solid #4a90d9;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.95);
-      color: #1a1a2e;
-      text-align: center;
-      outline: none;
-      transition: all 0.3s ease;
-      font-family: inherit;
-    }
-
-    .char-input:focus {
-      border-color: #00d9ff;
-      box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
-    }
-
-    .char-input::placeholder {
-      color: #888;
-      font-size: 1.4rem;
-    }
-
-    .display-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      max-width: 600px;
-    }
-
-    .character-display {
-      width: 280px;
-      height: 280px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      background: var(--sky-top);
+      overflow-x: hidden;
+      transition: background 2s ease;
       position: relative;
     }
 
+    /* ===== 天空背景动画层 ===== */
+    #sky-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ===== 地面装饰 ===== */
+    .ground-strip {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 48px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--ground) 0 32px,
+        #3a7a1a 32px 64px
+      );
+      border-top: var(--pixel) solid #2d5a10;
+      z-index: 1;
+      image-rendering: pixelated;
+    }
+    .ground-strip::before {
+      content:'';
+      position: absolute;
+      top: var(--pixel); left: 0; right: 0;
+      height: 16px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--dirt) 0 32px,
+        #7a5810 32px 64px
+      );
+    }
+
+    /* ===== 像素云朵 ===== */
+    .cloud {
+      position: fixed;
+      width: 96px; height: 48px;
+      background: white;
+      image-rendering: pixelated;
+      z-index: 1;
+      animation: cloudMove linear infinite;
+      opacity: 0.9;
+    }
+    .cloud::before {
+      content:'';
+      position: absolute;
+      width: 48px; height: 32px;
+      background: white;
+      top: -20px; left: 16px;
+    }
+    .cloud::after {
+      content:'';
+      position: absolute;
+      width: 32px; height: 24px;
+      background: white;
+      top: -12px; right: 8px;
+    }
+    @keyframes cloudMove {
+      from { transform: translateX(-150px); }
+      to { transform: translateX(calc(100vw + 150px)); }
+    }
+
+    /* ===== 像素星星（夜晚） ===== */
+    .star {
+      position: fixed;
+      width: 4px; height: 4px;
+      background: #fff;
+      z-index: 1;
+      animation: twinkle 2s ease-in-out infinite alternate;
+    }
+    @keyframes twinkle {
+      from { opacity: 0.3; }
+      to { opacity: 1; }
+    }
+
+    /* ===== 主内容 ===== */
+    .main-wrap {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 16px 80px;
+    }
+
+    /* ===== 大标题 ===== */
+    .game-title {
+      text-align: center;
+      margin-bottom: 16px;
+      padding: 14px 18px 10px;
+      background: var(--ui-bg);
+      border: var(--pixel) solid var(--ui-border);
+      box-shadow: var(--pixel) var(--pixel) 0 var(--ui-border2),
+                  inset 1px 1px 0 rgba(255,255,255,0.1);
+      image-rendering: pixelated;
+      width: 100%;
+      max-width: 500px;
+    }
+    .game-title h1 {
+      font-size: clamp(0.75rem, 3.5vw, 1.1rem);
+      color: var(--text-accent);
+      letter-spacing: 0.05em;
+      text-shadow: 3px 3px 0 #7a5000, 0 0 20px rgba(255,200,0,0.6);
+      line-height: 1.5;
+    }
+    .game-title .subtitle {
+      font-size: clamp(0.4rem, 1.8vw, 0.55rem);
+      color: #aad080;
+      margin-top: 6px;
+      letter-spacing: 0.1em;
+    }
+
+    /* ===== 主题状态栏 ===== */
+    .theme-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 12px;
+      padding: 6px 12px;
+      background: var(--ui-bg);
+      border: 2px solid var(--ui-border2);
+      font-size: 0.45rem;
+      color: #aad080;
+    }
+    .theme-bar .time-display { color: var(--text-accent); }
+    .theme-bar .theme-name { color: #80d0ff; }
+    .theme-bar .next-change { color: #ff8080; }
+
+    /* ===== 输入面板 ===== */
+    .input-panel {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 16px;
+      background: var(--ui-bg);
+      border: var(--pixel) solid var(--ui-border);
+      box-shadow: var(--pixel) var(--pixel) 0 var(--ui-border2);
+      padding: 14px;
+    }
+    .input-label {
+      font-size: 0.5rem;
+      color: #aad080;
+      display: block;
+      margin-bottom: 8px;
+      letter-spacing: 0.1em;
+    }
+    .char-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 2rem;
+      background: rgba(0,0,0,0.6);
+      color: var(--text-accent);
+      border: var(--pixel) solid var(--ui-border);
+      outline: none;
+      text-align: center;
+      font-family: 'Microsoft YaHei', sans-serif;
+      letter-spacing: 0.3em;
+      caret-color: var(--text-accent);
+      transition: border-color 0.2s;
+      image-rendering: pixelated;
+    }
+    .char-input:focus {
+      border-color: #ffe040;
+      box-shadow: 0 0 0 2px rgba(255,220,0,0.3), inset 0 0 8px rgba(0,0,0,0.5);
+    }
+    .char-input::placeholder {
+      font-size: 0.9rem;
+      color: #7a6a40;
+      font-family: 'Microsoft YaHei', sans-serif;
+    }
+
+    /* ===== 显示面板 ===== */
+    .display-panel {
+      width: 100%;
+      max-width: 500px;
+      background: var(--ui-bg);
+      border: var(--pixel) solid var(--ui-border);
+      box-shadow: var(--pixel) var(--pixel) 0 var(--ui-border2);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 汉字展示区 */
+    .character-wrap {
+      width: 260px; height: 260px;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    /* 格子背景 */
+    .character-wrap::before {
+      content:'';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,220,0,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,220,0,0.06) 1px, transparent 1px);
+      background-size: 65px 65px;
+      border: 2px solid rgba(255,220,0,0.15);
+      pointer-events: none;
+      z-index: 2;
+    }
     #character-target {
       width: 100%;
       height: 100%;
+      position: relative;
+      z-index: 1;
     }
 
-    .pinyin-display {
-      font-size: 2.5rem;
-      font-weight: 300;
-      color: #00d9ff;
-      margin: 20px 0;
-      letter-spacing: 0.15em;
-      text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
-    }
-
-    .words-display {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .word-item {
-      padding: 12px 24px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      font-size: 1.4rem;
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      transition: all 0.3s ease;
-      cursor: default;
-    }
-
-    .word-item:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-    }
-
-    .placeholder-text {
-      font-size: 8rem;
-      color: rgba(255, 255, 255, 0.15);
+    /* 占位汉字 */
+    .placeholder-char {
+      font-size: 10rem;
+      color: rgba(255,255,255,0.06);
       user-select: none;
+      font-family: 'Microsoft YaHei', sans-serif;
+      line-height: 260px;
+      text-align: center;
     }
 
-    .controls {
-      margin-top: 30px;
+    /* 拼音展示 */
+    .pinyin-row {
       display: flex;
-      gap: 15px;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .pinyin-badge {
+      padding: 6px 20px;
+      background: rgba(255,220,0,0.12);
+      border: 2px solid var(--ui-border);
+      font-size: 1.6rem;
+      color: var(--text-accent);
+      font-family: 'Microsoft YaHei', sans-serif;
+      letter-spacing: 0.2em;
+      text-shadow: 0 0 12px rgba(255,200,0,0.6);
+    }
+
+    /* 组词展示 */
+    .words-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .word-block {
+      padding: 8px 18px;
+      background: rgba(74,140,42,0.25);
+      border: 2px solid #4a8c2a;
+      color: #aaf080;
+      font-size: 1.1rem;
+      font-family: 'Microsoft YaHei', sans-serif;
+      cursor: default;
+      transition: all 0.15s;
+      image-rendering: pixelated;
+    }
+    .word-block:hover {
+      background: rgba(74,140,42,0.5);
+      transform: translateY(-2px);
+    }
+
+    /* 操作按钮行 */
+    .btn-row {
+      display: flex;
+      gap: 10px;
       flex-wrap: wrap;
       justify-content: center;
     }
-
-    .btn {
-      padding: 12px 28px;
-      font-size: 1rem;
+    .mc-btn {
+      padding: 10px 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
       border: none;
-      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.3s ease;
-      font-family: inherit;
-      font-weight: 500;
+      border-bottom: var(--pixel) solid rgba(0,0,0,0.5);
+      border-right: var(--pixel) solid rgba(0,0,0,0.5);
+      border-top: var(--pixel) solid rgba(255,255,255,0.3);
+      border-left: var(--pixel) solid rgba(255,255,255,0.3);
+      transition: all 0.1s;
+      image-rendering: pixelated;
+      letter-spacing: 0.05em;
+    }
+    .mc-btn:active { transform: translate(2px, 2px); border-bottom: none; border-right: none; }
+    .mc-btn-green { background: #4caf50; color: #fff; }
+    .mc-btn-green:hover { background: #66cc66; }
+    .mc-btn-brown { background: #8B6914; color: #ffe; }
+    .mc-btn-brown:hover { background: #a07818; }
+    .mc-btn-blue { background: #2c7bb5; color: #fff; }
+    .mc-btn-blue:hover { background: #3a8fcc; }
+    .mc-btn-red { background: #c0392b; color: #fff; }
+    .mc-btn-red:hover { background: #e74c3c; }
+
+    /* 错误提示 */
+    .error-msg {
+      font-size: 0.5rem;
+      color: #ff6060;
+      margin-top: 10px;
+      min-height: 18px;
+      letter-spacing: 0.05em;
+      font-family: 'Microsoft YaHei', sans-serif;
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #4a90d9, #00d9ff);
-      color: #fff;
+    /* ===== 添加到桌面横幅 ===== */
+    #install-banner {
+      position: fixed;
+      bottom: 58px;
+      left: 0; right: 0;
+      z-index: 100;
+      display: none;
+      justify-content: center;
+    }
+    .install-box {
+      background: var(--ui-bg);
+      border: var(--pixel) solid var(--ui-border);
+      box-shadow: var(--pixel) var(--pixel) 0 var(--ui-border2);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 440px;
+      width: calc(100% - 32px);
+    }
+    .install-box .install-text {
+      flex: 1;
+      font-size: 0.45rem;
+      color: var(--text-main);
+      line-height: 1.8;
+      font-family: 'Microsoft YaHei', sans-serif;
+    }
+    .install-box .install-icon {
+      font-size: 1.8rem;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4);
+    /* iOS提示 */
+    #ios-hint {
+      display: none;
+      position: fixed;
+      bottom: 58px;
+      left: 0; right: 0;
+      z-index: 100;
+      justify-content: center;
     }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .error-message {
-      color: #ff6b6b;
-      font-size: 1rem;
-      margin-top: 15px;
+    .ios-hint-box {
+      background: var(--ui-bg);
+      border: var(--pixel) solid var(--ui-border);
+      padding: 14px 16px;
+      max-width: 440px;
+      width: calc(100% - 32px);
       text-align: center;
-      min-height: 24px;
+    }
+    .ios-hint-box p {
+      font-size: 0.5rem;
+      color: var(--text-main);
+      line-height: 2;
+      font-family: 'Microsoft YaHei', sans-serif;
+    }
+    .ios-hint-box .arrow-down {
+      font-size: 1.5rem;
+      color: var(--text-accent);
+      display: block;
+      margin-top: 4px;
     }
 
-    .hint {
-      margin-top: 20px;
-      font-size: 0.85rem;
-      color: #888;
-      text-align: center;
+    /* 像素进度条 */
+    .progress-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #555;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50, #ffe040);
+      transition: width 1s linear;
     }
 
+    /* 像素爆炸颗粒动画 */
+    @keyframes pixel-burst {
+      0% { transform: scale(0) rotate(0deg); opacity: 1; }
+      100% { transform: scale(1) rotate(180deg) translate(30px, -40px); opacity: 0; }
+    }
+
+    /* 手机适配 */
     @media (max-width: 480px) {
-      body {
-        padding: 15px;
-      }
-
-      .char-input {
-        font-size: 1.8rem;
-        padding: 15px 20px;
-      }
-
-      .character-display {
-        width: 240px;
-        height: 240px;
-      }
-
-      .pinyin-display {
-        font-size: 2rem;
-      }
-
-      .word-item {
-        font-size: 1.2rem;
-        padding: 10px 18px;
-      }
-
-      .btn {
-        padding: 10px 20px;
-        font-size: 0.9rem;
-      }
+      .character-wrap { width: 220px; height: 220px; }
+      .character-wrap::before { background-size: 55px 55px; }
+      .pinyin-badge { font-size: 1.3rem; }
+      .game-title h1 { font-size: 0.75rem; }
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* 暗色主题过渡 */
+    body.night-mode {
+      --ui-bg: rgba(5,5,25,0.88);
+      --ui-border: #304080;
+      --ui-border2: #101040;
+      --text-main: #c0d0ff;
+      --text-accent: #80c0ff;
+      --stroke-color: #80c0ff;
+      --outline-color: #112244;
+      --btn-green: #2255aa;
+      --ground: #1a1a3a;
+      --dirt: #101030;
     }
 
-    .fade-in {
-      animation: fadeIn 0.4s ease;
+    /* 主题过渡 */
+    body, .main-wrap, .game-title, .input-panel, .display-panel, .theme-bar {
+      transition: background-color 2s ease, border-color 1s ease, color 1s ease;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>汉字笔顺展示</h1>
+
+<!-- 天空画布 -->
+<canvas id="sky-canvas"></canvas>
+
+<!-- 地面装饰 -->
+<div class="ground-strip"></div>
+
+<!-- 主题状态栏 -->
+<div class="main-wrap">
+
+  <!-- 大标题 -->
+  <div class="game-title">
+    <h1>🌍 元宝学习小世界 🌍</h1>
+    <p class="subtitle">✦ YUANBAO HANZI WORLD ✦</p>
   </div>
 
-  <div class="input-container">
-    <label class="input-label">输入汉字（回车确认）</label>
+  <!-- 主题/时间状态栏 -->
+  <div class="theme-bar">
+    <span class="time-display" id="clock">⏰ 00:00</span>
+    <span class="theme-name" id="theme-name">🌅 清晨的世界</span>
+    <span class="next-change" id="next-change">⏳ 10:00</span>
+  </div>
+  <div class="progress-bar-wrap" style="width:100%;max-width:500px;margin-bottom:12px;">
+    <div class="progress-bar-fill" id="theme-progress" style="width:0%"></div>
+  </div>
+
+  <!-- 输入面板 -->
+  <div class="input-panel">
+    <label class="input-label">▶ 用拼音输入法输入汉字，回车展示笔顺</label>
     <input
       type="text"
       id="charInput"
       class="char-input"
-      placeholder="用拼音输入法输入汉字"
+      placeholder="在这里输入汉字 …"
       autocomplete="off"
       autofocus
-      maxlength="5"
+      maxlength="8"
     >
   </div>
 
-  <div class="display-area">
-    <div class="character-display">
+  <!-- 展示面板 -->
+  <div class="display-panel">
+    <div class="character-wrap">
       <div id="character-target">
-        <span class="placeholder-text">字</span>
+        <div class="placeholder-char">字</div>
       </div>
     </div>
 
-    <div class="pinyin-display" id="pinyinShow"></div>
+    <div class="pinyin-row">
+      <div class="pinyin-badge" id="pinyinShow"></div>
+    </div>
 
-    <div class="words-display" id="wordsShow"></div>
+    <div class="words-row" id="wordsShow"></div>
 
-    <div class="error-message" id="errorMsg"></div>
+    <div class="error-msg" id="errorMsg"></div>
 
-    <div class="controls" id="controls" style="display: none;">
-      <button class="btn btn-primary" onclick="replayAnimation()">🔄 重播笔顺</button>
-      <button class="btn btn-secondary" onclick="showCharacter()">📝 显示全字</button>
+    <div class="btn-row" id="controls" style="display:none;">
+      <button class="mc-btn mc-btn-green" onclick="replayAnim()">▶ 重播笔顺</button>
+      <button class="mc-btn mc-btn-brown" onclick="showFullChar()">📖 显示全字</button>
+    </div>
+
+    <!-- 添加到桌面按钮 -->
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="mc-btn mc-btn-blue" id="install-btn" style="display:none;" onclick="installApp()">
+        📱 添加到桌面
+      </button>
+      <button class="mc-btn mc-btn-blue" id="ios-install-btn" style="display:none;" onclick="showIOSHint()">
+        📱 添加到桌面
+      </button>
     </div>
   </div>
 
-  <p class="hint">💡 用拼音输入法打出汉字，直接粘贴或输入即可</p>
+</div><!-- /main-wrap -->
 
-  <script>
-    // 扩充版汉字数据库：汉字 → {拼音, 组词}
-    const charDatabase = {
-      // ========== 基础数字 ==========
-      '一': { pinyin: 'yī', words: ['一个', '第一'] },
-      '二': { pinyin: 'èr', words: ['二月', '第二'] },
-      '三': { pinyin: 'sān', words: ['三月', '三个'] },
-      '四': { pinyin: 'sì', words: ['四月', '四方'] },
-      '五': { pinyin: 'wǔ', words: ['五月', '五个'] },
-      '六': { pinyin: 'liù', words: ['六月', '六个'] },
-      '七': { pinyin: 'qī', words: ['七月', '七个'] },
-      '八': { pinyin: 'bā', words: ['八月', '八个'] },
-      '九': { pinyin: 'jiǔ', words: ['九月', '九个'] },
-      '十': { pinyin: 'shí', words: ['十月', '十分'] },
-      '百': { pinyin: 'bǎi', words: ['一百', '百花'] },
-      '千': { pinyin: 'qiān', words: ['一千', '千万'] },
-      '万': { pinyin: 'wàn', words: ['一万', '千万'] },
+<!-- 安装横幅（Android/Desktop） -->
+<div id="install-banner">
+  <div class="install-box">
+    <span class="install-icon">📦</span>
+    <span class="install-text">把「元宝学习小世界」添加到桌面，随时使用！</span>
+    <button class="mc-btn mc-btn-green" onclick="installApp()">安装</button>
+    <button class="mc-btn mc-btn-brown" onclick="dismissBanner()">✕</button>
+  </div>
+</div>
 
-      // ========== 方位词 ==========
-      '上': { pinyin: 'shàng', words: ['上面', '上下'] },
-      '下': { pinyin: 'xià', words: ['下面', '上下'] },
-      '左': { pinyin: 'zuǒ', words: ['左边', '左右'] },
-      '右': { pinyin: 'yòu', words: ['右边', '左右'] },
-      '前': { pinyin: 'qián', words: ['前面', '前后'] },
-      '后': { pinyin: 'hòu', words: ['后面', '前后'] },
-      '里': { pinyin: 'lǐ', words: ['里面', '公里'] },
-      '外': { pinyin: 'wài', words: ['外面', '国外'] },
-      '东': { pinyin: 'dōng', words: ['东方', '东西'] },
-      '西': { pinyin: 'xī', words: ['西方', '东西'] },
-      '南': { pinyin: 'nán', words: ['南方', '南北'] },
-      '北': { pinyin: 'běi', words: ['北方', '南北'] },
-      '中': { pinyin: 'zhōng', words: ['中间', '中国'] },
-      '旁': { pinyin: 'páng', words: ['旁边', '路旁'] },
+<!-- iOS 安装提示 -->
+<div id="ios-hint">
+  <div class="ios-hint-box">
+    <p>点击浏览器底部 <strong>分享按钮</strong>（方框+箭头）</p>
+    <p>然后选择 <strong>「添加到主屏幕」</strong></p>
+    <span class="arrow-down">↓</span>
+  </div>
+</div>
 
-      // ========== 人体/器官 ==========
-      '头': { pinyin: 'tóu', words: ['头发', '点头'] },
-      '脑': { pinyin: 'nǎo', words: ['大脑', '电脑'] },
-      '眼': { pinyin: 'yǎn', words: ['眼睛', '眼看'] },
-      '耳': { pinyin: 'ěr', words: ['耳朵', '耳机'] },
-      '口': { pinyin: 'kǒu', words: ['口水', '门口'] },
-      '鼻': { pinyin: 'bí', words: ['鼻子', '鼻孔'] },
-      '嘴': { pinyin: 'zuǐ', words: ['嘴巴', '张嘴'] },
-      '牙': { pinyin: 'yá', words: ['牙齿', '大牙'] },
-      '舌': { pinyin: 'shé', words: ['舌头', '舌尖'] },
-      '手': { pinyin: 'shǒu', words: ['手机', '握手'] },
-      '脚': { pinyin: 'jiǎo', words: ['脚丫', '脚下'] },
-      '腿': { pinyin: 'tuǐ', words: ['大腿', '腿脚'] },
-      '心': { pinyin: 'xīn', words: ['心里', '开心'] },
-      '身': { pinyin: 'shēn', words: ['身体', '身高'] },
-      '骨': { pinyin: 'gǔ', words: ['骨头', '骨骼'] },
-      '血': { pinyin: 'xuè', words: ['血液', '出血'] },
-      '汗': { pinyin: 'hàn', words: ['出汗', '汗水'] },
-      '泪': { pinyin: 'lèi', words: ['眼泪', '泪水'] },
+<script>
+// ============================================================
+//  主题定义：10个主题（5白天 + 5夜晚）
+// ============================================================
+const THEMES = [
+  // ——— 白天 5个 ———
+  {
+    id: 'dawn',       name: '🌅 黎明的世界',  isDay: true,
+    skyTop: '#FF7043', skyBot: '#FFB300',
+    ground: '#3d7a1a', strokeColor: '#FF7043', outlineColor: '#3a2a10',
+    uiBorder: '#FF7043', stars: false, clouds: true, cloudColor: '#FFE0B2',
+    fog: false,
+  },
+  {
+    id: 'morning',    name: '☀️ 早晨的世界',  isDay: true,
+    skyTop: '#64B5F6', skyBot: '#E3F2FD',
+    ground: '#4a8c2a', strokeColor: '#FFE040', outlineColor: '#335544',
+    uiBorder: '#a08040', stars: false, clouds: true, cloudColor: '#ffffff',
+    fog: false,
+  },
+  {
+    id: 'noon',       name: '🌞 正午的世界',  isDay: true,
+    skyTop: '#1E88E5', skyBot: '#90CAF9',
+    ground: '#4a8c2a', strokeColor: '#FFF176', outlineColor: '#1a3310',
+    uiBorder: '#ffcc00', stars: false, clouds: true, cloudColor: '#ffffff',
+    fog: false,
+  },
+  {
+    id: 'afternoon',  name: '⛅ 下午的世界',  isDay: true,
+    skyTop: '#42A5F5', skyBot: '#FFCC80',
+    ground: '#388e1a', strokeColor: '#FFD54F', outlineColor: '#224422',
+    uiBorder: '#FFA726', stars: false, clouds: true, cloudColor: '#ffe0b2',
+    fog: false,
+  },
+  {
+    id: 'sunset',     name: '🌇 黄昏的世界',  isDay: true,
+    skyTop: '#BF360C', skyBot: '#FF6F00',
+    ground: '#2d5a10', strokeColor: '#FF8A65', outlineColor: '#1a1000',
+    uiBorder: '#FF5722', stars: false, clouds: true, cloudColor: '#FF7043',
+    fog: false,
+  },
+  // ——— 夜晚 5个 ———
+  {
+    id: 'dusk',       name: '🌆 傍晚的世界',  isDay: false,
+    skyTop: '#1A237E', skyBot: '#4527A0',
+    ground: '#1a2e10', strokeColor: '#CE93D8', outlineColor: '#0d0d20',
+    uiBorder: '#7E57C2', stars: true, clouds: false, cloudColor: '',
+    fog: false,
+  },
+  {
+    id: 'night',      name: '🌙 星夜的世界',  isDay: false,
+    skyTop: '#0D0D2B', skyBot: '#0A1628',
+    ground: '#0d1a08', strokeColor: '#80D8FF', outlineColor: '#050515',
+    uiBorder: '#0288D1', stars: true, clouds: false, cloudColor: '',
+    fog: false,
+  },
+  {
+    id: 'moon',       name: '🌕 满月的世界',  isDay: false,
+    skyTop: '#1B2A3B', skyBot: '#0D1B2A',
+    ground: '#101d08', strokeColor: '#B2EBF2', outlineColor: '#080c18',
+    uiBorder: '#26C6DA', stars: true, clouds: false, cloudColor: '',
+    fog: false,
+  },
+  {
+    id: 'rain',       name: '🌧️ 雨夜的世界',  isDay: false,
+    skyTop: '#263238', skyBot: '#37474F',
+    ground: '#0d1508', strokeColor: '#80CBC4', outlineColor: '#0a1012',
+    uiBorder: '#26A69A', stars: false, clouds: true, cloudColor: '#546E7A',
+    fog: true,
+  },
+  {
+    id: 'aurora',     name: '🌌 极光的世界',  isDay: false,
+    skyTop: '#004D40', skyBot: '#0D1B2A',
+    ground: '#0a1005', strokeColor: '#A5D6A7', outlineColor: '#021008',
+    uiBorder: '#43A047', stars: true, clouds: false, cloudColor: '',
+    fog: false,
+  },
+];
 
-      // ========== 动作/行为 ==========
-      '走': { pinyin: 'zǒu', words: ['走路', '行走'] },
-      '跑': { pinyin: 'pǎo', words: ['跑步', '逃跑'] },
-      '跳': { pinyin: 'tiào', words: ['跳舞', '跳高'] },
-      '站': { pinyin: 'zhàn', words: ['站立', '车站'] },
-      '坐': { pinyin: 'zuò', words: ['坐下', '坐车'] },
-      '睡': { pinyin: 'shuì', words: ['睡觉', '睡眠'] },
-      '醒': { pinyin: 'xǐng', words: ['醒来', '清醒'] },
-      '吃': { pinyin: 'chī', words: ['吃饭', '吃东西'] },
-      '喝': { pinyin: 'hē', words: ['喝水', '喝茶'] },
-      '说': { pinyin: 'shuō', words: ['说话', '说明'] },
-      '听': { pinyin: 'tīng', words: ['听话', '听说'] },
-      '看': { pinyin: 'kàn', words: ['看书', '看见'] },
-      '读': { pinyin: 'dú', words: ['读书', '阅读'] },
-      '写': { pinyin: 'xiě', words: ['写字', '写作'] },
-      '唱': { pinyin: 'chàng', words: ['唱歌', '唱戏'] },
-      '笑': { pinyin: 'xiào', words: ['笑话', '微笑'] },
-      '哭': { pinyin: 'kū', words: ['哭泣', '哭声'] },
-      '想': { pinyin: 'xiǎng', words: ['想念', '思想'] },
-      '思': { pinyin: 'sī', words: ['思想', '思考'] },
-      '念': { pinyin: 'niàn', words: ['想念', '读书'] },
-      '做': { pinyin: 'zuò', words: ['做事', '做饭'] },
-      '作': { pinyin: 'zuò', words: ['工作', '作业'] },
-      '学': { pinyin: 'xué', words: ['学习', '学生'] },
-      '习': { pinyin: 'xí', words: ['学习', '练习'] },
-      '用': { pinyin: 'yòng', words: ['使用', '有用'] },
-      '穿': { pinyin: 'chuān', words: ['穿衣', '穿鞋'] },
-      '戴': { pinyin: 'dài', words: ['穿戴', '戴帽子'] },
-      '洗': { pinyin: 'xǐ', words: ['洗手', '洗澡'] },
-      '玩': { pinyin: 'wán', words: ['玩耍', '玩笑'] },
-      '爱': { pinyin: 'ài', words: ['爱好', '可爱'] },
-      '喜欢': { pinyin: 'xǐhuān', words: ['喜欢', '喜爱'] },
-      '开': { pinyin: 'kāi', words: ['打开', '开车'] },
-      '关': { pinyin: 'guān', words: ['关闭', '关门'] },
-      '拿': { pinyin: 'ná', words: ['拿东西', '拿起'] },
-      '放': { pinyin: 'fàng', words: ['放下', '放心'] },
-      '打': { pinyin: 'dǎ', words: ['打电话', '打字'] },
-      '接': { pinyin: 'jiē', words: ['接电话', '接受'] },
-      '买': { pinyin: 'mǎi', words: ['买书', '买菜'] },
-      '卖': { pinyin: 'mài', words: ['卖东西', '买卖'] },
-      '找': { pinyin: 'zhǎo', words: ['找人', '寻找'] },
-      '来': { pinyin: 'lái', words: ['过来', '回来'] },
-      '去': { pinyin: 'qù', words: ['出去', '回去'] },
-      '回': { pinyin: 'huí', words: ['回来', '回家'] },
-      '进': { pinyin: 'jìn', words: ['进来', '进入'] },
-      '出': { pinyin: 'chū', words: ['出去', '出门'] },
-      '到': { pinyin: 'dào', words: ['到达', '迟到'] },
-      '给': { pinyin: 'gěi', words: ['给我', '送给'] },
-      '带': { pinyin: 'dài', words: ['带来', '带领'] },
-      '问': { pinyin: 'wèn', words: ['问题', '提问'] },
-      '答': { pinyin: 'dá', words: ['回答', '答案'] },
-      '知': { pinyin: 'zhī', words: ['知道', '知识'] },
-      '道': { pinyin: 'dào', words: ['知道', '道理'] },
-      '认': { pinyin: 'rèn', words: ['认识', '认真'] },
-      '识': { pinyin: 'shí', words: ['认识', '知识'] },
-      '记': { pinyin: 'jì', words: ['记住', '记忆'] },
-      '忘': { pinyin: 'wàng', words: ['忘记', '难忘'] },
-      '会': { pinyin: 'huì', words: ['开会', '会来'] },
-      '能': { pinyin: 'néng', words: ['能够', '能力'] },
-      '可': { pinyin: 'kě', words: ['可以', '可爱'] },
-      '以': { pinyin: 'yǐ', words: ['可以', '以后'] },
-      '要': { pinyin: 'yào', words: ['不要', '重要'] },
-      '得': { pinyin: 'dé', words: ['得到', '觉得'] },
-      '把': { pinyin: 'bǎ', words: ['把握', '一把'] },
+// ============================================================
+//  时间 & 主题逻辑
+// ============================================================
+let currentThemeIndex = 0;
+let themeStartTime = Date.now();
+const THEME_INTERVAL = 10 * 60 * 1000; // 10分钟
 
-      // ========== 自然/天气 ==========
-      '天': { pinyin: 'tiān', words: ['天气', '今天'] },
-      '地': { pinyin: 'dì', words: ['地上', '地方'] },
-      '日': { pinyin: 'rì', words: ['日出', '日记'] },
-      '月': { pinyin: 'yuè', words: ['月亮', '月光'] },
-      '星': { pinyin: 'xīng', words: ['星星', '星光'] },
-      '云': { pinyin: 'yún', words: ['白云', '云朵'] },
-      '雨': { pinyin: 'yǔ', words: ['下雨', '雨水'] },
-      '雪': { pinyin: 'xuě', words: ['下雪', '雪花'] },
-      '风': { pinyin: 'fēng', words: ['大风', '风光'] },
-      '雷': { pinyin: 'léi', words: ['雷声', '雷电'] },
-      '电': { pinyin: 'diàn', words: ['电话', '电脑'] },
-      '水': { pinyin: 'shuǐ', words: ['水果', '喝水'] },
-      '火': { pinyin: 'huǒ', words: ['火车', '着火'] },
-      '山': { pinyin: 'shān', words: ['山上', '高山'] },
-      '河': { pinyin: 'hé', words: ['河水', '黄河'] },
-      '海': { pinyin: 'hǎi', words: ['大海', '海水'] },
-      '湖': { pinyin: 'hú', words: ['湖水', '湖泊'] },
-      '江': { pinyin: 'jiāng', words: ['长江', '江河'] },
-      '春': { pinyin: 'chūn', words: ['春天', '春风'] },
-      '夏': { pinyin: 'xià', words: ['夏天', '夏日'] },
-      '秋': { pinyin: 'qiū', words: ['秋天', '秋风'] },
-      '冬': { pinyin: 'dōng', words: ['冬天', '冬季'] },
-      '时': { pinyin: 'shí', words: ['时间', '小时'] },
-      '候': { pinyin: 'hòu', words: ['时候', '等候'] },
-      '早': { pinyin: 'zǎo', words: ['早上', '早起'] },
-      '晚': { pinyin: 'wǎn', words: ['晚上', '晚饭'] },
-      '今': { pinyin: 'jīn', words: ['今天', '今年'] },
-      '明': { pinyin: 'míng', words: ['明天', '明白'] },
-      '昨': { pinyin: 'zuó', words: ['昨天', '昨日'] },
-      '年': { pinyin: 'nián', words: ['今年', '去年'] },
-      '岁': { pinyin: 'suì', words: ['几岁', '岁月'] },
+function getTimeBasedThemePool() {
+  const h = new Date().getHours();
+  // 白天：6~18点 → 白天主题；其余 → 夜晚主题
+  const dayThemes   = THEMES.filter(t => t.isDay);
+  const nightThemes = THEMES.filter(t => !t.isDay);
+  if (h >= 6 && h < 18) return dayThemes;
+  // 黄昏过渡
+  if (h >= 5 && h < 6) return [THEMES.find(t=>t.id==='dawn'), ...nightThemes];
+  if (h >= 18 && h < 20) return [THEMES.find(t=>t.id==='sunset'), ...nightThemes];
+  return nightThemes;
+}
 
-      // ========== 颜色 ==========
-      '红': { pinyin: 'hóng', words: ['红色', '红花'] },
-      '黄': { pinyin: 'huáng', words: ['黄色', '黄金'] },
-      '蓝': { pinyin: 'lán', words: ['蓝色', '蓝天'] },
-      '绿': { pinyin: 'lǜ', words: ['绿色', '绿叶'] },
-      '白': { pinyin: 'bái', words: ['白色', '白菜'] },
-      '黑': { pinyin: 'hēi', words: ['黑色', '黑夜'] },
-      '青': { pinyin: 'qīng', words: ['青色', '青年'] },
-      '紫': { pinyin: 'zǐ', words: ['紫色', '紫花'] },
-      '灰': { pinyin: 'huī', words: ['灰色', '灰暗'] },
-      '金': { pinyin: 'jīn', words: ['金色', '黄金'] },
-      '银': { pinyin: 'yín', words: ['银色', '金银'] },
-      '彩': { pinyin: 'cǎi', words: ['彩色', '光彩'] },
+function pickThemeByTime() {
+  const pool = getTimeBasedThemePool();
+  // 按10分钟轮换
+  const idx = Math.floor(Date.now() / THEME_INTERVAL) % pool.length;
+  return pool[idx];
+}
 
-      // ========== 家庭称呼 ==========
-      '爸': { pinyin: 'bà', words: ['爸爸', '爸妈'] },
-      '妈': { pinyin: 'mā', words: ['妈妈', '爸妈'] },
-      '爷': { pinyin: 'yé', words: ['爷爷', '老爷'] },
-      '奶': { pinyin: 'nǎi', words: ['奶奶', '牛奶'] },
-      '哥': { pinyin: 'gē', words: ['哥哥', '大哥'] },
-      '弟': { pinyin: 'dì', words: ['弟弟', '兄弟'] },
-      '姐': { pinyin: 'jiě', words: ['姐姐', '姐妹'] },
-      '妹': { pinyin: 'mèi', words: ['妹妹', '姐妹'] },
-      '叔': { pinyin: 'shū', words: ['叔叔', '大叔'] },
-      '舅': { pinyin: 'jiù', words: ['舅舅', '舅妈'] },
-      '姨': { pinyin: 'yí', words: ['阿姨', '姨妈'] },
-      '姑': { pinyin: 'gū', words: ['姑姑', '姑妈'] },
-      '公': { pinyin: 'gōng', words: ['外公', '老公'] },
-      '婆': { pinyin: 'pó', words: ['外婆', '婆婆'] },
-      '儿': { pinyin: 'ér', words: ['儿子', '儿童'] },
-      '女': { pinyin: 'nǚ', words: ['女儿', '男女'] },
-      '父': { pinyin: 'fù', words: ['父亲', '父母'] },
-      '母': { pinyin: 'mǔ', words: ['母亲', '父母'] },
-      '家': { pinyin: 'jiā', words: ['家人', '回家'] },
+function applyTheme(theme) {
+  const root = document.documentElement;
+  // 天空
+  document.body.style.background = `linear-gradient(180deg, ${theme.skyTop} 0%, ${theme.skyBot} 70%, ${theme.ground} 100%)`;
 
-      // ========== 食物 ==========
-      '饭': { pinyin: 'fàn', words: ['吃饭', '米饭'] },
-      '面': { pinyin: 'miàn', words: ['面条', '面粉'] },
-      '包': { pinyin: 'bāo', words: ['包子', '面包'] },
-      '饺': { pinyin: 'jiǎo', words: ['饺子', '水饺'] },
-      '汤': { pinyin: 'tāng', words: ['喝汤', '菜汤'] },
-      '菜': { pinyin: 'cài', words: ['白菜', '炒菜'] },
-      '肉': { pinyin: 'ròu', words: ['猪肉', '鸡肉'] },
-      '鱼': { pinyin: 'yú', words: ['鱼肉', '金鱼'] },
-      '鸡': { pinyin: 'jī', words: ['小鸡', '鸡肉'] },
-      '蛋': { pinyin: 'dàn', words: ['鸡蛋', '蛋糕'] },
-      '牛': { pinyin: 'niú', words: ['牛奶', '水牛'] },
-      '羊': { pinyin: 'yáng', words: ['山羊', '绵羊'] },
-      '猪': { pinyin: 'zhū', words: ['小猪', '猪肉'] },
-      '虾': { pinyin: 'xiā', words: ['大虾', '虾米'] },
-      '米': { pinyin: 'mǐ', words: ['大米', '米饭'] },
-      '豆': { pinyin: 'dòu', words: ['大豆', '豆腐'] },
-      '果': { pinyin: 'guǒ', words: ['水果', '苹果'] },
-      '苹': { pinyin: 'píng', words: ['苹果', '苹果树'] },
-      '桃': { pinyin: 'táo', words: ['桃子', '桃花'] },
-      '梨': { pinyin: 'lí', words: ['梨子', '鸭梨'] },
-      '葡': { pinyin: 'pú', words: ['葡萄', '葡萄干'] },
-      '萄': { pinyin: 'táo', words: ['葡萄', '葡萄干'] },
-      '西': { pinyin: 'xī', words: ['西瓜', '西方'] },
-      '瓜': { pinyin: 'guā', words: ['西瓜', '冬瓜'] },
-      '蕉': { pinyin: 'jiāo', words: ['香蕉', '芭蕉'] },
-      '糖': { pinyin: 'táng', words: ['糖果', '白糖'] },
-      '盐': { pinyin: 'yán', words: ['食盐', '盐水'] },
-      '油': { pinyin: 'yóu', words: ['石油', '汽油'] },
-      '酱': { pinyin: 'jiàng', words: ['酱油', '果酱'] },
-      '醋': { pinyin: 'cù', words: ['醋', '米醋'] },
-      '茶': { pinyin: 'chá', words: ['喝茶', '茶叶'] },
-      '酒': { pinyin: 'jiǔ', words: ['喝酒', '白酒'] },
-      '杯': { pinyin: 'bēi', words: ['杯子', '酒杯'] },
-      '碗': { pinyin: 'wǎn', words: ['饭碗', '大碗'] },
-      '筷': { pinyin: 'kuài', words: ['筷子', '竹筷'] },
-      '刀': { pinyin: 'dāo', words: ['小刀', '菜刀'] },
-      '叉': { pinyin: 'chā', words: ['叉子', '刀叉'] },
+  // CSS变量
+  root.style.setProperty('--stroke-color', theme.strokeColor);
+  root.style.setProperty('--outline-color', theme.outlineColor);
+  root.style.setProperty('--ui-border', theme.uiBorder);
+  root.style.setProperty('--ground', theme.ground);
 
-      // ========== 动物 ==========
-      '狗': { pinyin: 'gǒu', words: ['小狗', '热狗'] },
-      '猫': { pinyin: 'māo', words: ['小猫', '花猫'] },
-      '兔': { pinyin: 'tù', words: ['小兔', '白兔'] },
-      '马': { pinyin: 'mǎ', words: ['小马', '马路'] },
-      '牛': { pinyin: 'niú', words: ['水牛', '牛奶'] },
-      '羊': { pinyin: 'yáng', words: ['山羊', '绵羊'] },
-      '猪': { pinyin: 'zhū', words: ['小猪', '猪肉'] },
-      '驴': { pinyin: 'lǘ', words: ['毛驴', '骑驴'] },
-      '骆': { pinyin: 'luò', words: ['骆驼', '骆驼'] },
-      '驼': { pinyin: 'tuó', words: ['骆驼', '驼背'] },
-      '象': { pinyin: 'xiàng', words: ['大象', '象棋'] },
-      '狮': { pinyin: 'shī', words: ['狮子', '雄狮'] },
-      '虎': { pinyin: 'hǔ', words: ['老虎', '虎口'] },
-      '豹': { pinyin: 'bào', words: ['豹子', '金钱豹'] },
-      '熊': { pinyin: 'xióng', words: ['熊猫', '狗熊'] },
-      '猫': { pinyin: 'māo', words: ['熊猫', '小猫'] },
-      '猴': { pinyin: 'hóu', words: ['猴子', '猴年'] },
-      '蛇': { pinyin: 'shé', words: ['小蛇', '毒蛇'] },
-      '虫': { pinyin: 'chóng', words: ['虫子', '昆虫'] },
-      '鸟': { pinyin: 'niǎo', words: ['小鸟', '飞鸟'] },
-      '鸡': { pinyin: 'jī', words: ['小鸡', '母鸡'] },
-      '鸭': { pinyin: 'yā', words: ['小鸭', '鸭子'] },
-      '鹅': { pinyin: 'é', words: ['天鹅', '白鹅'] },
-      '鸽': { pinyin: 'gē', words: ['鸽子', '白鸽'] },
-      '鹰': { pinyin: 'yīng', words: ['老鹰', '雄鹰'] },
-      '蝴': { pinyin: 'hú', words: ['蝴蝶', '蝴蝶结'] },
-      '蝶': { pinyin: 'dié', words: ['蝴蝶', '飞蝶'] },
-      '蜜': { pinyin: 'mì', words: ['蜜蜂', '蜂蜜'] },
-      '蜂': { pinyin: 'fēng', words: ['蜜蜂', '蜂蜜'] },
-      '蚁': { pinyin: 'yǐ', words: ['蚂蚁', '蚁穴'] },
-      '鱼': { pinyin: 'yú', words: ['金鱼', '鱼儿'] },
-      '虾': { pinyin: 'xiā', words: ['大虾', '虾米'] },
-      '螃': { pinyin: 'páng', words: ['螃蟹', '螃蜞'] },
-      '蟹': { pinyin: 'xiè', words: ['螃蟹', '蟹黄'] },
-      '龟': { pinyin: 'guī', words: ['乌龟', '海龟'] },
-      '龙': { pinyin: 'lóng', words: ['中国龙', '龙王'] },
+  if (!theme.isDay) {
+    document.body.classList.add('night-mode');
+  } else {
+    document.body.classList.remove('night-mode');
+  }
 
-      // ========== 植物 ==========
-      '花': { pinyin: 'huā', words: ['花朵', '开花'] },
-      '草': { pinyin: 'cǎo', words: ['小草', '草地'] },
-      '树': { pinyin: 'shù', words: ['树木', '大树'] },
-      '木': { pinyin: 'mù', words: ['树木', '木头'] },
-      '林': { pinyin: 'lín', words: ['森林', '树林'] },
-      '森': { pinyin: 'sēn', words: ['森林', '森严'] },
-      '叶': { pinyin: 'yè', words: ['叶子', '树叶'] },
-      '根': { pinyin: 'gēn', words: ['树根', '根本'] },
-      '枝': { pinyin: 'zhī', words: ['树枝', '枝叶'] },
-      '芽': { pinyin: 'yá', words: ['发芽', '豆芽'] },
-      '花': { pinyin: 'huā', words: ['开花', '红花'] },
-      '果': { pinyin: 'guǒ', words: ['结果', '水果'] },
-      '种子': { pinyin: 'zhǒngzi', words: ['种子', '种子'] },
-      '种': { pinyin: 'zhǒng', words: ['种子', '种植'] },
-      '植': { pinyin: 'zhí', words: ['植物', '种植'] },
-      '物': { pinyin: 'wù', words: ['植物', '动物'] },
-      '竹': { pinyin: 'zhú', words: ['竹子', '竹林'] },
-      '松': { pinyin: 'sōng', words: ['松树', '松鼠'] },
-      '柏': { pinyin: 'bǎi', words: ['柏树', '松柏'] },
-      '柳': { pinyin: 'liǔ', words: ['柳树', '柳枝'] },
-      '杨': { pinyin: 'yáng', words: ['杨树', '白杨'] },
-      '梅': { pinyin: 'méi', words: ['梅花', '杨梅'] },
-      '兰': { pinyin: 'lán', words: ['兰花', '兰草'] },
-      '菊': { pinyin: 'jú', words: ['菊花', '秋菊'] },
-      '荷': { pinyin: 'hé', words: ['荷花', '荷叶'] },
-      '莲': { pinyin: 'lián', words: ['莲花', '莲子'] },
-      '瓜': { pinyin: 'guā', words: ['西瓜', '冬瓜'] },
+  // 更新 hanziWriter 颜色
+  if (writer) {
+    writer.updateColor('strokeColor', theme.strokeColor);
+    writer.updateColor('outlineColor', theme.outlineColor);
+  }
 
-      // ========== 学习相关 ==========
-      '书': { pinyin: 'shū', words: ['书包', '读书'] },
-      '本': { pinyin: 'běn', words: ['本子', '课本'] },
-      '笔': { pinyin: 'bǐ', words: ['笔友', '毛笔'] },
-      '纸': { pinyin: 'zhǐ', words: ['纸张', '报纸'] },
-      '字': { pinyin: 'zì', words: ['写字', '汉字'] },
-      '汉': { pinyin: 'hàn', words: ['汉字', '汉语'] },
-      '语': { pinyin: 'yǔ', words: ['语文', '语言'] },
-      '文': { pinyin: 'wén', words: ['语文', '文化'] },
-      '英': { pinyin: 'yīng', words: ['英语', '英文'] },
-      '数': { pinyin: 'shù', words: ['数学', '数字'] },
-      '学': { pinyin: 'xué', words: ['学生', '学校'] },
-      '校': { pinyin: 'xiào', words: ['学校', '校园'] },
-      '班': { pinyin: 'bān', words: ['班级', '上班'] },
-      '级': { pinyin: 'jí', words: ['年级', '上级'] },
-      '课': { pinyin: 'kè', words: ['上课', '课本'] },
-      '室': { pinyin: 'shì', words: ['教室', '办公室'] },
-      '桌': { pinyin: 'zhuō', words: ['桌子', '书桌'] },
-      '椅': { pinyin: 'yǐ', words: ['椅子', '桌椅'] },
-      '黑': { pinyin: 'hēi', words: ['黑板', '黑色'] },
-      '板': { pinyin: 'bǎn', words: ['黑板', '木板'] },
-      '图': { pinyin: 'tú', words: ['图书', '图画'] },
-      '画': { pinyin: 'huà', words: ['画画', '图画'] },
-      '体': { pinyin: 'tǐ', words: ['体育', '身体'] },
-      '育': { pinyin: 'yù', words: ['教育', '体育'] },
-      '美': { pinyin: 'měi', words: ['美术', '美国'] },
-      '术': { pinyin: 'shù', words: ['美术', '技术'] },
-      '音': { pinyin: 'yīn', words: ['音乐', '声音'] },
-      '乐': { pinyin: 'yuè', words: ['音乐', '快乐'] },
-      '唱': { pinyin: 'chàng', words: ['唱歌', '唱戏'] },
-      '跳': { pinyin: 'tiào', words: ['跳舞', '跳高'] },
-      '戏': { pinyin: 'xì', words: ['戏剧', '游戏'] },
-      '游': { pinyin: 'yóu', words: ['游戏', '旅游'] },
-      '考': { pinyin: 'kǎo', words: ['考试', '思考'] },
-      '试': { pinyin: 'shì', words: ['考试', '试试'] },
-      '题': { pinyin: 'tí', words: ['题目', '问题'] },
-      '作': { pinyin: 'zuò', words: ['作业', '工作'] },
-      '业': { pinyin: 'yè', words: ['作业', '毕业'] },
-      '毕': { pinyin: 'bì', words: ['毕业', '完毕'] },
+  // 重绘天空
+  drawSky(theme);
 
-      // ========== 生活用品 ==========
-      '衣': { pinyin: 'yī', words: ['衣服', '大衣'] },
-      '服': { pinyin: 'fú', words: ['衣服', '服务'] },
-      '裤': { pinyin: 'kù', words: ['裤子', '短裤'] },
-      '鞋': { pinyin: 'xié', words: ['鞋子', '皮鞋'] },
-      '袜': { pinyin: 'wà', words: ['袜子', '丝袜'] },
-      '帽': { pinyin: 'mào', words: ['帽子', '毡帽'] },
-      '裙': { pinyin: 'qún', words: ['裙子', '短裙'] },
-      '巾': { pinyin: 'jīn', words: ['毛巾', '手巾'] },
-      '床': { pinyin: 'chuáng', words: ['床上', '床单'] },
-      '被': { pinyin: 'bèi', words: ['被子', '棉被'] },
-      '枕': { pinyin: 'zhěn', words: ['枕头', '枕木'] },
-      '灯': { pinyin: 'dēng', words: ['灯光', '台灯'] },
-      '窗': { pinyin: 'chuāng', words: ['窗户', '窗帘'] },
-      '帘': { pinyin: 'lián', words: ['窗帘', '门帘'] },
-      '门': { pinyin: 'mén', words: ['门口', '大门'] },
-      '锁': { pinyin: 'suǒ', words: ['锁门', '开锁'] },
-      '钥': { pinyin: 'yào', words: ['钥匙', '钥匙'] },
-      '匙': { pinyin: 'shi', words: ['钥匙', '锁匙'] },
-      '桌': { pinyin: 'zhuō', words: ['桌子', '书桌'] },
-      '椅': { pinyin: 'yǐ', words: ['椅子', '轮椅'] },
-      '柜': { pinyin: 'guì', words: ['柜子', '衣柜'] },
-      '沙': { pinyin: 'shā', words: ['沙发', '长沙'] },
-      '发': { pinyin: 'fā', words: ['沙发', '头发'] },
-      '毯': { pinyin: 'tǎn', words: ['地毯', '毛毯'] },
-      '盆': { pinyin: 'pén', words: ['脸盆', '花盆'] },
-      '桶': { pinyin: 'tǒng', words: ['水桶', '木桶'] },
-      '镜': { pinyin: 'jìng', words: ['镜子', '眼镜'] },
-      '梳': { pinyin: 'shū', words: ['梳子', '梳理'] },
-      '刷': { pinyin: 'shuā', words: ['牙刷', '刷子'] },
-      '牙': { pinyin: 'yá', words: ['牙刷', '牙齿'] },
-      '膏': { pinyin: 'gāo', words: ['牙膏', '药膏'] },
-      '皂': { pinyin: 'zào', words: ['肥皂', '香皂'] },
-      '毛': { pinyin: 'máo', words: ['毛巾', '羽毛'] },
-      '巾': { pinyin: 'jīn', words: ['毛巾', '手巾'] },
-      '脸': { pinyin: 'liǎn', words: ['洗脸', '脸盆'] },
-      '手': { pinyin: 'shǒu', words: ['洗手', '手机'] },
-      '脸': { pinyin: 'liǎn', words: ['脸蛋', '洗脸'] },
+  document.getElementById('theme-name').textContent = theme.name;
+}
 
-      // ========== 建筑/地点 ==========
-      '房': { pinyin: 'fáng', words: ['房间', '房子'] },
-      '屋': { pinyin: 'wū', words: ['屋子', '房屋'] },
-      '楼': { pinyin: 'lóu', words: ['楼房', '上楼'] },
-      '房': { pinyin: 'fáng', words: ['楼房', '厨房'] },
-      '厨': { pinyin: 'chú', words: ['厨房', '厨师'] },
-      '厕': { pinyin: 'cè', words: ['厕所', '卫生间'] },
-      '卫': { pinyin: 'wèi', words: ['厕所', '卫生'] },
-      '生': { pinyin: 'shēng', words: ['卫生', '生活'] },
-      '院': { pinyin: 'yuàn', words: ['医院', '学院'] },
-      '医': { pinyin: 'yī', words: ['医院', '医生'] },
-      '院': { pinyin: 'yuàn', words: ['医院', '院长'] },
-      '店': { pinyin: 'diàn', words: ['商店', '书店'] },
-      '饭': { pinyin: 'fàn', words: ['饭店', '吃饭'] },
-      '馆': { pinyin: 'guǎn', words: ['饭馆', '图书馆'] },
-      '银': { pinyin: 'yín', words: ['银行', '金银'] },
-      '行': { pinyin: 'háng', words: ['银行', '行业'] },
-      '邮': { pinyin: 'yóu', words: ['邮局', '邮票'] },
-      '局': { pinyin: 'jú', words: ['邮局', '邮局'] },
-      '火': { pinyin: 'huǒ', words: ['火车', '着火'] },
-      '车': { pinyin: 'chē', words: ['火车', '汽车'] },
-      '站': { pinyin: 'zhàn', words: ['车站', '站立'] },
-      '机': { pinyin: 'jī', words: ['飞机', '手机'] },
-      '场': { pinyin: 'chǎng', words: ['机场', '场地'] },
-      '园': { pinyin: 'yuán', words: ['公园', '校园'] },
-      '公': { pinyin: 'gōng', words: ['公园', '公司'] },
-      '司': { pinyin: 'sī', words: ['公司', '上司'] },
-      '厂': { pinyin: 'chǎng', words: ['工厂', '厂长'] },
-      '工': { pinyin: 'gōng', words: ['工人', '工作'] },
-      '路': { pinyin: 'lù', words: ['马路', '走路'] },
-      '桥': { pinyin: 'qiáo', words: ['大桥', '小桥'] },
-      '街': { pinyin: 'jiē', words: ['街道', '上街'] },
-      '道': { pinyin: 'dào', words: ['道路', '知道'] },
-      '口': { pinyin: 'kǒu', words: ['路口', '门口'] },
+// ============================================================
+//  Canvas 天空 & 粒子绘制
+// ============================================================
+const canvas = document.getElementById('sky-canvas');
+const ctx = canvas.getContext('2d');
+let animFrame;
+let skyParticles = [];
 
-      // ========== 交通/工具 ==========
-      '车': { pinyin: 'chē', words: ['汽车', '火车'] },
-      '汽': { pinyin: 'qì', words: ['汽车', '汽油'] },
-      '机': { pinyin: 'jī', words: ['飞机', '机器'] },
-      '船': { pinyin: 'chuán', words: ['轮船', '船上'] },
-      '轮': { pinyin: 'lún', words: ['轮船', '轮胎'] },
-      '地': { pinyin: 'dì', words: ['地铁', '地方'] },
-      '铁': { pinyin: 'tiě', words: ['地铁', '火车'] },
-      '巴': { pinyin: 'bā', words: ['巴士', '大巴'] },
-      '卡': { pinyin: 'kǎ', words: ['卡车', '卡片'] },
-      '公': { pinyin: 'gōng', words: ['公交', '公司'] },
-      '交': { pinyin: 'jiāo', words: ['公交', '交通'] },
-      '自': { pinyin: 'zì', words: ['自己', '自行车'] },
-      '行': { pinyin: 'xíng', words: ['自行车', '行走'] },
-      '辆': { pinyin: 'liàng', words: ['车辆', '一辆'] },
-      '票': { pinyin: 'piào', words: ['车票', '电影票'] },
-      '票': { pinyin: 'piào', words: ['票', '门票'] },
-      '伞': { pinyin: 'sǎn', words: ['雨伞', '太阳伞'] },
-      '袋': { pinyin: 'dài', words: ['袋子', '口袋'] },
-      '包': { pinyin: 'bāo', words: ['书包', '背包'] },
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-      // ========== 电子/科技 ==========
-      '电': { pinyin: 'diàn', words: ['电脑', '电话'] },
-      '脑': { pinyin: 'nǎo', words: ['电脑', '大脑'] },
-      '话': { pinyin: 'huà', words: ['电话', '说话'] },
-      '视': { pinyin: 'shì', words: ['电视', '视线'] },
-      '机': { pinyin: 'jī', words: ['手机', '飞机'] },
-      '屏': { pinyin: 'píng', words: ['屏幕', '手机屏'] },
-      '幕': { pinyin: 'mù', words: ['屏幕', '银幕'] },
-      '键': { pinyin: 'jiàn', words: ['键盘', '按键'] },
-      '盘': { pinyin: 'pán', words: ['键盘', '盘子'] },
-      '鼠': { pinyin: 'shǔ', words: ['鼠标', '老鼠'] },
-      '网': { pinyin: 'wǎng', words: ['网络', '上网'] },
-      '线': { pinyin: 'xiàn', words: ['网络', '电话线'] },
-      '充': { pinyin: 'chōng', words: ['充电', '充满'] },
-      '电': { pinyin: 'diàn', words: ['充电', '电池'] },
-      '池': { pinyin: 'chí', words: ['电池', '池塘'] },
-      '音': { pinyin: 'yīn', words: ['音乐', '声音'] },
-      '响': { pinyin: 'xiǎng', words: ['音响', '响声'] },
-      '摄': { pinyin: 'shè', words: ['摄影', '拍摄'] },
-      '像': { pinyin: 'xiàng', words: ['摄影', '图像'] },
-      '相': { pinyin: 'xiàng', words: ['相机', '照相'] },
-      '机': { pinyin: 'jī', words: ['相机', '机器'] },
-      '录': { pinyin: 'lù', words: ['录像', '录音'] },
-      '音': { pinyin: 'yīn', words: ['录音', '音乐'] },
-
-      // ========== 形容词 ==========
-      '大': { pinyin: 'dà', words: ['大家', '大小'] },
-      '小': { pinyin: 'xiǎo', words: ['小孩', '小心'] },
-      '高': { pinyin: 'gāo', words: ['高大', '高山'] },
-      '矮': { pinyin: 'ǎi', words: ['矮小', '高矮'] },
-      '长': { pinyin: 'cháng', words: ['长短', '长大'] },
-      '短': { pinyin: 'duǎn', words: ['长短', '短文'] },
-      '粗': { pinyin: 'cū', words: ['粗细', '粗大'] },
-      '细': { pinyin: 'xì', words: ['粗细', '细小'] },
-      '宽': { pinyin: 'kuān', words: ['宽窄', '宽广'] },
-      '窄': { pinyin: 'zhǎi', words: ['宽窄', '狭窄'] },
-      '厚': { pinyin: 'hòu', words: ['厚薄', '厚度'] },
-      '薄': { pinyin: 'báo', words: ['厚薄', '薄纸'] },
-      '深': { pinyin: 'shēn', words: ['深浅', '深刻'] },
-      '浅': { pinyin: 'qiǎn', words: ['深浅', '浅色'] },
-      '远': { pinyin: 'yuǎn', words: ['远近', '远方'] },
-      '近': { pinyin: 'jìn', words: ['远近', '最近'] },
-      '快': { pinyin: 'kuài', words: ['快乐', '很快'] },
-      '慢': { pinyin: 'màn', words: ['快慢', '慢慢'] },
-      '早': { pinyin: 'zǎo', words: ['早晚', '早上'] },
-      '晚': { pinyin: 'wǎn', words: ['早晚', '晚上'] },
-      '新': { pinyin: 'xīn', words: ['新旧', '新年'] },
-      '旧': { pinyin: 'jiù', words: ['新旧', '旧书'] },
-      '好': { pinyin: 'hǎo', words: ['好人', '很好'] },
-      '坏': { pinyin: 'huài', words: ['好坏', '坏人'] },
-      '美': { pinyin: 'měi', words: ['美丽', '美好'] },
-      '丑': { pinyin: 'chǒu', words: ['美丑', '丑陋'] },
-      '香': { pinyin: 'xiāng', words: ['香水', '花香'] },
-      '臭': { pinyin: 'chòu', words: ['香臭', '发臭'] },
-      '甜': { pinyin: 'tián', words: ['甜蜜', '甜食'] },
-      '苦': { pinyin: 'kǔ', words: ['辛苦', '苦味'] },
-      '酸': { pinyin: 'suān', words: ['酸味', '酸甜'] },
-      '辣': { pinyin: 'là', words: ['辣味', '辣椒'] },
-      '咸': { pinyin: 'xián', words: ['咸淡', '太咸'] },
-      '淡': { pinyin: 'dàn', words: ['咸淡', '清淡'] },
-      '热': { pinyin: 'rè', words: ['热冷', '天气热'] },
-      '冷': { pinyin: 'lěng', words: ['热冷', '冷天'] },
-      '暖': { pinyin: 'nuǎn', words: ['暖和', '温暖'] },
-      '凉': { pinyin: 'liáng', words: ['凉快', '天气凉'] },
-      '干': { pinyin: 'gān', words: ['干净', '干燥'] },
-      '湿': { pinyin: 'shī', words: ['干燥', '潮湿'] },
-      '亮': { pinyin: 'liàng', words: ['明亮', '光亮'] },
-      '暗': { pinyin: 'àn', words: ['明暗', '黑暗'] },
-      '响': { pinyin: 'xiǎng', words: ['响亮', '响声'] },
-      '轻': { pinyin: 'qīng', words: ['轻重', '轻松'] },
-      '重': { pinyin: 'zhòng', words: ['轻重', '重要'] },
-      '软': { pinyin: 'ruǎn', words: ['软硬', '柔软'] },
-      '硬': { pinyin: 'yìng', words: ['软硬', '坚硬'] },
-      '松': { pinyin: 'sōng', words: ['松紧', '松开'] },
-      '紧': { pinyin: 'jǐn', words: ['松紧', '紧张'] },
-      '多': { pinyin: 'duō', words: ['多少', '很多'] },
-      '少': { pinyin: 'shǎo', words: ['多少', '减少'] },
-      '全': { pinyin: 'quán', words: ['完全', '全部'] },
-      '半': { pinyin: 'bàn', words: ['一半', '半天'] },
-      '真': { pinyin: 'zhēn', words: ['真假', '真心'] },
-      '假': { pinyin: 'jiǎ', words: ['真假', '假话'] },
-      '老': { pinyin: 'lǎo', words: ['老人', '老师'] },
-      '少': { pinyin: 'shào', words: ['少年', '多少'] },
-      '男': { pinyin: 'nán', words: ['男女', '男生'] },
-      '女': { pinyin: 'nǚ', words: ['男女', '女生'] },
-      '忙': { pinyin: 'máng', words: ['忙闲', '很忙'] },
-      '闲': { pinyin: 'xián', words: ['忙闲', '空闲'] },
-      '难': { pinyin: 'nán', words: ['难易', '困难'] },
-      '易': { pinyin: 'yì', words: ['难易', '容易'] },
-      '对': { pinyin: 'duì', words: ['对错', '不对'] },
-      '错': { pinyin: 'cuò', words: ['对错', '错误'] },
-      '真': { pinyin: 'zhēn', words: ['真假', '认真'] },
-      '正': { pinyin: 'zhèng', words: ['正反', '正确'] },
-      '反': { pinyin: 'fǎn', words: ['正反', '反面'] },
-
-      // ========== 其他常用 ==========
-      '我': { pinyin: 'wǒ', words: ['我们', '我的'] },
-      '你': { pinyin: 'nǐ', words: ['你们', '你的'] },
-      '他': { pinyin: 'tā', words: ['他们', '他的'] },
-      '她': { pinyin: 'tā', words: ['她们', '她的'] },
-      '它': { pinyin: 'tā', words: ['它们', '它的'] },
-      '们': { pinyin: 'men', words: ['我们', '他们'] },
-      '的': { pinyin: 'de', words: ['我的', '好的'] },
-      '了': { pinyin: 'le', words: ['好了', '吃了'] },
-      '在': { pinyin: 'zài', words: ['在家', '在这里'] },
-      '有': { pinyin: 'yǒu', words: ['没有', '有用'] },
-      '没': { pinyin: 'méi', words: ['没有', '没事'] },
-      '是': { pinyin: 'shì', words: ['是不是', '是的'] },
-      '不': { pinyin: 'bù', words: ['不是', '不错'] },
-      '很': { pinyin: 'hěn', words: ['很好', '很多'] },
-      '都': { pinyin: 'dōu', words: ['都是', '都要'] },
-      '也': { pinyin: 'yě', words: ['也是', '也好'] },
-      '还': { pinyin: 'hái', words: ['还是', '还要'] },
-      '就': { pinyin: 'jiù', words: ['就是', '就好'] },
-      '这': { pinyin: 'zhè', words: ['这个', '这里'] },
-      '那': { pinyin: 'nà', words: ['那个', '那里'] },
-      '哪': { pinyin: 'nǎ', words: ['哪个', '哪里'] },
-      '谁': { pinyin: 'shuí', words: ['谁', '是谁'] },
-      '什么': { pinyin: 'shénme', words: ['什么', '说什么'] },
-      '怎': { pinyin: 'zěn', words: ['怎么', '怎样'] },
-      '么': { pinyin: 'me', words: ['什么', '怎么'] },
-      '样': { pinyin: 'yàng', words: ['怎样', '一样'] },
-      '为': { pinyin: 'wèi', words: ['为什么', '因为'] },
-      '因': { pinyin: 'yīn', words: ['因为', '原因'] },
-      '果': { pinyin: 'guǒ', words: ['如果', '结果'] },
-      '所': { pinyin: 'suǒ', words: ['所以', '厕所'] },
-      '以': { pinyin: 'yǐ', words: ['所以', '可以'] },
-      '但': { pinyin: 'dàn', words: ['但是', '不但'] },
-      '却': { pinyin: 'què', words: ['却是', '却步'] },
-      '如': { pinyin: 'rú', words: ['如果', '比如'] },
-      '果': { pinyin: 'guǒ', words: ['如果', '水果'] },
-      '和': { pinyin: 'hé', words: ['和好', '和平'] },
-      '与': { pinyin: 'yǔ', words: ['与其', '与'] },
-      '或': { pinyin: 'huò', words: ['或者', '或许'] },
-      '且': { pinyin: 'qiě', words: ['并且', '且慢'] },
-      '虽': { pinyin: 'suī', words: ['虽然', '虽'] },
-      '然': { pinyin: 'rán', words: ['然后', '自然'] },
-      '后': { pinyin: 'hòu', words: ['然后', '后面'] },
-      '先': { pinyin: 'xiān', words: ['先后', '首先'] },
-      '又': { pinyin: 'yòu', words: ['又是', '而且'] },
-      '再': { pinyin: 'zài', words: ['再见', '再次'] },
-      '才': { pinyin: 'cái', words: ['才能', '人才'] },
-      '只': { pinyin: 'zhǐ', words: ['只要', '只是'] },
-      '已': { pinyin: 'yǐ', words: ['已经', '已知'] },
-      '经': { pinyin: 'jīng', words: ['已经', '经过'] },
-      '常': { pinyin: 'cháng', words: ['经常', '平常'] },
-      '非': { pinyin: 'fēi', words: ['非常', '是非'] },
-      '常': { pinyin: 'cháng', words: ['非常', '经常'] },
-      '总': { pinyin: 'zǒng', words: ['总是', '总共有'] },
-      '从': { pinyin: 'cóng', words: ['从来', '从前'] },
-      '向': { pinyin: 'xiàng', words: ['方向', '走向'] },
-      '往': { pinyin: 'wǎng', words: ['往来', '来往'] },
-      '每': { pinyin: 'měi', words: ['每天', '每个'] },
-      '各': { pinyin: 'gè', words: ['各个', '各国'] },
-      '其': { pinyin: 'qí', words: ['其他', '其实'] },
-      '次': { pinyin: 'cì', words: ['每次', '次序'] },
-      '第': { pinyin: 'dì', words: ['第一', '次第'] },
-      '等': { pinyin: 'děng', words: ['等等', '相等'] },
-      '被': { pinyin: 'bèi', words: ['被动', '被害'] },
-      '把': { pinyin: 'bǎ', words: ['把握', '把门'] },
-      '让': { pinyin: 'ràng', words: ['让开', '让步'] },
-      '请': { pinyin: 'qǐng', words: ['请坐', '请求'] },
-      '谢': { pinyin: 'xiè', words: ['谢谢', '感谢'] },
-      '对': { pinyin: 'duì', words: ['对不起', '对'] },
-      '起': { pinyin: 'qǐ', words: ['对不起', '起床'] },
-      '不': { pinyin: 'bù', words: ['对不起', '不错'] },
-      '起': { pinyin: 'qǐ', words: ['对不起', '起来'] },
-      '没': { pinyin: 'méi', words: ['没关系', '没有'] },
-      '关': { pinyin: 'guān', words: ['没关系', '关门'] },
-      '系': { pinyin: 'xì', words: ['没关系', '联系'] },
-      '谢': { pinyin: 'xiè', words: ['谢谢', '感谢'] },
-      '谢': { pinyin: 'xiè', words: ['谢谢', '感谢'] },
-
-      // ========== 更多常用汉字 ==========
-      '万': { pinyin: 'wàn', words: ['万一', '十万'] },
-      '亿': { pinyin: 'yì', words: ['亿万', '亿'] },
-      '元': { pinyin: 'yuán', words: ['单元', '多元'] },
-      '块': { pinyin: 'kuài', words: ['一块', '石块'] },
-      '毛': { pinyin: 'máo', words: ['毛笔', '羽毛'] },
-      '角': { pinyin: 'jiǎo', words: ['一角', '牛角'] },
-      '分': { pinyin: 'fēn', words: ['分钟', '分数'] },
-      '刻': { pinyin: 'kè', words: ['五刻', '立刻'] },
-      '钟': { pinyin: 'zhōng', words: ['时钟', '钟表'] },
-      '点': { pinyin: 'diǎn', words: ['钟点', '早点'] },
-      '号': { pinyin: 'hào', words: ['号码', '符号'] },
-      '期': { pinyin: 'qī', words: ['日期', '星期'] },
-      '周': { pinyin: 'zhōu', words: ['周期', '周围'] },
-      '末': { pinyin: 'mò', words: ['周末', '期末'] },
-      '节': { pinyin: 'jié', words: ['节日', '春节'] },
-      '春': { pinyin: 'chūn', words: ['春节', '春天'] },
-      '节': { pinyin: 'jié', words: ['节日', '节约'] },
-      '夏': { pinyin: 'xià', words: ['夏季', '夏天'] },
-      '秋': { pinyin: 'qiū', words: ['秋季', '秋天'] },
-      '冬': { pinyin: 'dōng', words: ['冬季', '冬天'] },
-      '寒': { pinyin: 'hán', words: ['寒假', '寒冷'] },
-      '暑': { pinyin: 'shǔ', words: ['暑假', '暑热'] },
-      '假': { pinyin: 'jià', words: ['放假', '假期'] },
-      '期': { pinyin: 'qī', words: ['假期', '学期'] },
-      '病': { pinyin: 'bìng', words: ['生病', '病人'] },
-      '医': { pinyin: 'yī', words: ['医院', '医生'] },
-      '药': { pinyin: 'yào', words: ['吃药', '药品'] },
-      '店': { pinyin: 'diàn', words: ['商店', '书店'] },
-      '市': { pinyin: 'shì', words: ['城市', '市场'] },
-      '城': { pinyin: 'chéng', words: ['城市', '进城'] },
-      '村': { pinyin: 'cūn', words: ['农村', '村子'] },
-      '庄': { pinyin: 'zhuāng', words: ['村庄', '庄稼'] },
-      '街': { pinyin: 'jiē', words: ['街道', '上街'] },
-      '道': { pinyin: 'dào', words: ['街道', '道路'] },
-      '路': { pinyin: 'lù', words: ['走路', '马路上'] },
-      '口': { pinyin: 'kǒu', words: ['路口', '人口'] },
-      '井': { pinyin: 'jǐng', words: ['水井', '井口'] },
-      '河': { pinyin: 'hé', words: ['小河', '河水'] },
-      '湖': { pinyin: 'hú', words: ['湖水', '湖泊'] },
-      '海': { pinyin: 'hǎi', words: ['大海', '海水'] },
-      '江': { pinyin: 'jiāng', words: ['长江', '江河'] },
-      '泉': { pinyin: 'quán', words: ['泉水', '温泉'] },
-      '溪': { pinyin: 'xī', words: ['小溪', '溪水'] },
-      '洲': { pinyin: 'zhōu', words: ['亚洲', '绿洲'] },
-      '岛': { pinyin: 'dǎo', words: ['小岛', '海岛'] },
-      '山': { pinyin: 'shān', words: ['山上', '高山'] },
-      '峰': { pinyin: 'fēng', words: ['山峰', '高峰'] },
-      '岭': { pinyin: 'lǐng', words: ['山岭', '分水岭'] },
-      '崖': { pinyin: 'yá', words: ['山崖', '悬崖'] },
-      '谷': { pinyin: 'gǔ', words: ['山谷', '峡谷'] },
-      '岛': { pinyin: 'dǎo', words: ['岛屿', '海岛'] },
-      '石': { pinyin: 'shí', words: ['石头', '宝石'] },
-      '沙': { pinyin: 'shā', words: ['沙子', '风沙'] },
-      '泥': { pinyin: 'ní', words: ['泥土', '泥巴'] },
-      '土': { pinyin: 'tǔ', words: ['土地', '泥土'] },
-      '田': { pinyin: 'tián', words: ['田地', '农田'] },
-      '地': { pinyin: 'dì', words: ['田地', '地方'] },
-      '园': { pinyin: 'yuán', words: ['田园', '园林'] },
-      '林': { pinyin: 'lín', words: ['森林', '树林'] },
-      '森': { pinyin: 'sēn', words: ['森林', '森严'] },
-      '草': { pinyin: 'cǎo', words: ['草地', '小草'] },
-      '花': { pinyin: 'huā', words: ['花朵', '开花'] },
-      '树': { pinyin: 'shù', words: ['树木', '大树'] },
-      '木': { pinyin: 'mù', words: ['木头', '树木'] },
-      '叶': { pinyin: 'yè', words: ['叶子', '树叶'] },
-      '根': { pinyin: 'gēn', words: ['根本', '树根'] },
-      '枝': { pinyin: 'zhī', words: ['树枝', '枝叶'] },
-      '芽': { pinyin: 'yá', words: ['发芽', '豆芽'] },
-      '果': { pinyin: 'guǒ', words: ['水果', '结果'] },
-      '种': { pinyin: 'zhǒng', words: ['种子', '各种'] },
-      '植': { pinyin: 'zhí', words: ['植物', '种植'] },
-      '物': { pinyin: 'wù', words: ['动物', '植物'] },
-      '虫': { pinyin: 'chóng', words: ['虫子', '昆虫'] },
-      '鸟': { pinyin: 'niǎo', words: ['小鸟', '飞鸟'] },
-      '鱼': { pinyin: 'yú', words: ['金鱼', '鱼儿'] },
-      '马': { pinyin: 'mǎ', words: ['小马', '马上'] },
-      '牛': { pinyin: 'niú', words: ['水牛', '牛奶'] },
-      '羊': { pinyin: 'yáng', words: ['山羊', '绵羊'] },
-      '猪': { pinyin: 'zhū', words: ['小猪', '猪肉'] },
-      '狗': { pinyin: 'gǒu', words: ['小狗', '热狗'] },
-      '猫': { pinyin: 'māo', words: ['小猫', '熊猫'] },
-      '鸡': { pinyin: 'jī', words: ['小鸡', '母鸡'] },
-      '鸭': { pinyin: 'yā', words: ['小鸭', '鸭子'] },
-      '兔': { pinyin: 'tù', words: ['小兔', '白兔'] },
-      '龙': { pinyin: 'lóng', words: ['中国龙', '龙王'] },
-      '蛇': { pinyin: 'shé', words: ['小蛇', '毒蛇'] },
-      '虎': { pinyin: 'hǔ', words: ['老虎', '虎口'] },
-      '象': { pinyin: 'xiàng', words: ['大象', '象棋'] },
-      '猴': { pinyin: 'hóu', words: ['猴子', '猴年'] },
-      '鼠': { pinyin: 'shǔ', words: ['老鼠', '松鼠'] },
-      '蚁': { pinyin: 'yǐ', words: ['蚂蚁', '蚁穴'] },
-      '蜂': { pinyin: 'fēng', words: ['蜜蜂', '蜂蜜'] },
-      '蝶': { pinyin: 'dié', words: ['蝴蝶', '蝶泳'] },
-    };
-
-    let writer = null;
-
-    // 输入处理
-    document.getElementById('charInput').addEventListener('input', function(e) {
-      const input = this.value.trim();
-      if (input.length > 0) {
-        // 取第一个汉字
-        const char = input[0];
-        showCharacter(char);
-      }
-    });
-
-    document.getElementById('charInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        const input = this.value.trim();
-        if (input.length > 0) {
-          const char = input[0];
-          showCharacter(char);
-        }
-      }
-    });
-
-    function showCharacter(char) {
-      const charInfo = charDatabase[char];
-      const errorMsg = document.getElementById('errorMsg');
-      const controls = document.getElementById('controls');
-      const charInput = document.getElementById('charInput');
-
-      // 清空输入框
-      charInput.value = char;
-
-      if (charInfo) {
-        errorMsg.textContent = '';
-        controls.style.display = 'flex';
-
-        // 显示笔顺动画
-        showStrokeAnimation(char);
-
-        // 显示拼音
-        document.getElementById('pinyinShow').textContent = charInfo.pinyin;
-        document.getElementById('pinyinShow').className = 'pinyin-display fade-in';
-
-        // 显示组词
-        const wordsHtml = charInfo.words.map(w => `<span class="word-item fade-in">${w}</span>`).join('');
-        document.getElementById('wordsShow').innerHTML = wordsHtml;
-
-      } else {
-        errorMsg.textContent = `抱歉，暂不支持汉字 "${char}" 的笔顺数据`;
-        document.getElementById('pinyinShow').textContent = '';
-        document.getElementById('wordsShow').innerHTML = '';
-        controls.style.display = 'none';
-        document.getElementById('character-target').innerHTML = '<span class="placeholder-text">字</span>';
-      }
-    }
-
-    function showStrokeAnimation(char) {
-      const target = document.getElementById('character-target');
-      target.innerHTML = '';
-
-      writer = HanziWriter.create('character-target', char, {
-        width: 280,
-        height: 280,
-        padding: 10,
-        showOutline: true,
-        showCharacter: false,
-        strokeColor: '#00d9ff',
-        outlineColor: '#335577',
-        drawingColor: '#00d9ff',
-        strokeAnimationSpeed: 1,
-        delayBetweenStrokes: 150,
-        onLoadCharDataSuccess: function(data) {
-          writer.animateCharacter();
-        },
-        onLoadCharDataError: function(reason) {
-          document.getElementById('errorMsg').textContent = '笔顺数据加载失败，请检查网络';
-        }
+function drawSky(theme) {
+  cancelAnimationFrame(animFrame);
+  skyParticles = [];
+  // 生成粒子（星星 or 云）
+  if (theme.stars) {
+    for (let i = 0; i < 80; i++) {
+      skyParticles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height * 0.7,
+        r: Math.random() * 2 + 1,
+        alpha: Math.random(),
+        speed: Math.random() * 0.015 + 0.005,
+        type: 'star'
       });
     }
-
-    function replayAnimation() {
-      if (writer) {
-        writer.hideCharacter();
-        writer.animateCharacter();
-      }
+  }
+  if (theme.clouds) {
+    for (let i = 0; i < 4; i++) {
+      skyParticles.push({
+        x: Math.random() * canvas.width,
+        y: 30 + Math.random() * 120,
+        speed: 0.2 + Math.random() * 0.3,
+        w: 80 + Math.random() * 80,
+        color: theme.cloudColor,
+        type: 'cloud'
+      });
     }
-
-    function showCharacter() {
-      if (writer) {
-        writer.showCharacter();
-      }
+  }
+  if (theme.id === 'aurora') {
+    for (let i = 0; i < 5; i++) {
+      skyParticles.push({
+        x: Math.random() * canvas.width,
+        y: 20 + Math.random() * 120,
+        w: 40 + Math.random() * 60,
+        h: 80 + Math.random() * 120,
+        hue: 120 + Math.random() * 80,
+        alpha: 0.15 + Math.random() * 0.15,
+        speed: 0.001,
+        t: Math.random() * Math.PI * 2,
+        type: 'aurora'
+      });
     }
+  }
+  if (theme.fog) {
+    for (let i = 0; i < 3; i++) {
+      skyParticles.push({
+        x: Math.random() * canvas.width,
+        y: canvas.height * 0.4 + Math.random() * canvas.height * 0.3,
+        w: 200 + Math.random() * 200,
+        alpha: 0.08 + Math.random() * 0.07,
+        speed: 0.05 + Math.random() * 0.1,
+        type: 'fog'
+      });
+    }
+  }
+  animateSky(theme);
+}
 
-    // 页面加载完成后聚焦输入框
-    window.addEventListener('load', function() {
-      document.getElementById('charInput').focus();
+function animateSky(theme) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  skyParticles.forEach(p => {
+    if (p.type === 'star') {
+      p.alpha += p.speed * (Math.random() > 0.5 ? 1 : -1);
+      p.alpha = Math.max(0.1, Math.min(1, p.alpha));
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = '#fff';
+      // 像素星星
+      ctx.fillRect(p.x - 2, p.y, 4, 1);
+      ctx.fillRect(p.x, p.y - 2, 1, 4);
+      ctx.restore();
+    } else if (p.type === 'cloud') {
+      p.x += p.speed;
+      if (p.x > canvas.width + 200) p.x = -200;
+      drawPixelCloud(p.x, p.y, p.w, p.color);
+    } else if (p.type === 'aurora') {
+      p.t += p.speed;
+      const yOff = Math.sin(p.t) * 20;
+      ctx.save();
+      const grad = ctx.createLinearGradient(p.x, p.y + yOff, p.x + p.w, p.y + p.h + yOff);
+      grad.addColorStop(0, `hsla(${p.hue}, 80%, 60%, 0)`);
+      grad.addColorStop(0.5, `hsla(${p.hue}, 80%, 60%, ${p.alpha})`);
+      grad.addColorStop(1, `hsla(${p.hue + 40}, 80%, 60%, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w/2, p.y + p.h/2 + yOff, p.w/2, p.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    } else if (p.type === 'fog') {
+      p.x += p.speed;
+      if (p.x > canvas.width + 300) p.x = -300;
+      ctx.save();
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.w);
+      grad.addColorStop(0, `rgba(180,200,220,${p.alpha})`);
+      grad.addColorStop(1, `rgba(180,200,220,0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(p.x - p.w, p.y - 40, p.w * 2, 80);
+      ctx.restore();
+    }
+  });
+  animFrame = requestAnimationFrame(() => animateSky(theme));
+}
+
+function drawPixelCloud(x, y, w, color) {
+  const h = w * 0.35;
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  ctx.fillStyle = color || '#fff';
+  // 主体
+  ctx.fillRect(x, y, w, h);
+  // 凸起
+  ctx.fillRect(x + w*0.15, y - h*0.5, w*0.35, h*0.6);
+  ctx.fillRect(x + w*0.45, y - h*0.3, w*0.25, h*0.4);
+  ctx.restore();
+}
+
+// ============================================================
+//  时钟 & 主题进度条
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `⏰ ${hh}:${mm}:${ss}`;
+
+  // 距离下次切换倒计时
+  const elapsed = Date.now() % THEME_INTERVAL;
+  const remain  = THEME_INTERVAL - elapsed;
+  const rm = String(Math.floor(remain / 60000)).padStart(2,'0');
+  const rs = String(Math.floor((remain % 60000) / 1000)).padStart(2,'0');
+  document.getElementById('next-change').textContent = `⏳ ${rm}:${rs}`;
+
+  // 进度条
+  const pct = (elapsed / THEME_INTERVAL) * 100;
+  document.getElementById('theme-progress').style.width = pct + '%';
+}
+
+// ============================================================
+//  主题定时轮换
+// ============================================================
+let lastThemeId = null;
+function checkTheme() {
+  const t = pickThemeByTime();
+  if (t.id !== lastThemeId) {
+    lastThemeId = t.id;
+    applyTheme(t);
+  }
+}
+checkTheme();
+setInterval(checkTheme, 10000); // 每10秒检查一次（主题变化时才切换）
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+//  汉字字库（600+）
+// ============================================================
+const charDatabase = {
+  '一':{ pinyin:'yī', words:['一个','第一'] },'二':{ pinyin:'èr', words:['二月','第二'] },
+  '三':{ pinyin:'sān', words:['三月','三个'] },'四':{ pinyin:'sì', words:['四月','四方'] },
+  '五':{ pinyin:'wǔ', words:['五月','五个'] },'六':{ pinyin:'liù', words:['六月','六个'] },
+  '七':{ pinyin:'qī', words:['七月','七个'] },'八':{ pinyin:'bā', words:['八月','八个'] },
+  '九':{ pinyin:'jiǔ', words:['九月','九个'] },'十':{ pinyin:'shí', words:['十月','十分'] },
+  '百':{ pinyin:'bǎi', words:['一百','百花'] },'千':{ pinyin:'qiān', words:['一千','千万'] },
+  '万':{ pinyin:'wàn', words:['一万','千万'] },'亿':{ pinyin:'yì', words:['亿万','十亿'] },
+  '上':{ pinyin:'shàng', words:['上面','上下'] },'下':{ pinyin:'xià', words:['下面','上下'] },
+  '左':{ pinyin:'zuǒ', words:['左边','左右'] },'右':{ pinyin:'yòu', words:['右边','左右'] },
+  '前':{ pinyin:'qián', words:['前面','前后'] },'后':{ pinyin:'hòu', words:['后面','以后'] },
+  '里':{ pinyin:'lǐ', words:['里面','公里'] },'外':{ pinyin:'wài', words:['外面','国外'] },
+  '东':{ pinyin:'dōng', words:['东方','东西'] },'西':{ pinyin:'xī', words:['西方','西瓜'] },
+  '南':{ pinyin:'nán', words:['南方','南北'] },'北':{ pinyin:'běi', words:['北方','南北'] },
+  '中':{ pinyin:'zhōng', words:['中间','中国'] },'旁':{ pinyin:'páng', words:['旁边','路旁'] },
+  '头':{ pinyin:'tóu', words:['头发','点头'] },'脑':{ pinyin:'nǎo', words:['大脑','电脑'] },
+  '眼':{ pinyin:'yǎn', words:['眼睛','眼看'] },'耳':{ pinyin:'ěr', words:['耳朵','耳机'] },
+  '口':{ pinyin:'kǒu', words:['口水','门口'] },'鼻':{ pinyin:'bí', words:['鼻子','鼻孔'] },
+  '嘴':{ pinyin:'zuǐ', words:['嘴巴','张嘴'] },'牙':{ pinyin:'yá', words:['牙齿','大牙'] },
+  '手':{ pinyin:'shǒu', words:['手机','握手'] },'脚':{ pinyin:'jiǎo', words:['脚丫','脚下'] },
+  '腿':{ pinyin:'tuǐ', words:['大腿','腿脚'] },'心':{ pinyin:'xīn', words:['心里','开心'] },
+  '身':{ pinyin:'shēn', words:['身体','身高'] },'骨':{ pinyin:'gǔ', words:['骨头','骨骼'] },
+  '血':{ pinyin:'xuè', words:['血液','出血'] },'汗':{ pinyin:'hàn', words:['出汗','汗水'] },
+  '走':{ pinyin:'zǒu', words:['走路','行走'] },'跑':{ pinyin:'pǎo', words:['跑步','逃跑'] },
+  '跳':{ pinyin:'tiào', words:['跳舞','跳高'] },'站':{ pinyin:'zhàn', words:['站立','车站'] },
+  '坐':{ pinyin:'zuò', words:['坐下','坐车'] },'睡':{ pinyin:'shuì', words:['睡觉','睡眠'] },
+  '醒':{ pinyin:'xǐng', words:['醒来','清醒'] },'吃':{ pinyin:'chī', words:['吃饭','吃东西'] },
+  '喝':{ pinyin:'hē', words:['喝水','喝茶'] },'说':{ pinyin:'shuō', words:['说话','说明'] },
+  '听':{ pinyin:'tīng', words:['听话','听说'] },'看':{ pinyin:'kàn', words:['看书','看见'] },
+  '读':{ pinyin:'dú', words:['读书','阅读'] },'写':{ pinyin:'xiě', words:['写字','写作'] },
+  '唱':{ pinyin:'chàng', words:['唱歌','唱戏'] },'笑':{ pinyin:'xiào', words:['笑话','微笑'] },
+  '哭':{ pinyin:'kū', words:['哭泣','哭声'] },'想':{ pinyin:'xiǎng', words:['想念','思想'] },
+  '爱':{ pinyin:'ài', words:['爱好','可爱'] },'学':{ pinyin:'xué', words:['学习','学生'] },
+  '习':{ pinyin:'xí', words:['学习','练习'] },'做':{ pinyin:'zuò', words:['做事','做饭'] },
+  '用':{ pinyin:'yòng', words:['使用','有用'] },'来':{ pinyin:'lái', words:['过来','回来'] },
+  '去':{ pinyin:'qù', words:['出去','回去'] },'回':{ pinyin:'huí', words:['回来','回家'] },
+  '找':{ pinyin:'zhǎo', words:['找人','寻找'] },'买':{ pinyin:'mǎi', words:['买书','买菜'] },
+  '卖':{ pinyin:'mài', words:['买卖','卖东西'] },'打':{ pinyin:'dǎ', words:['打电话','打字'] },
+  '开':{ pinyin:'kāi', words:['打开','开车'] },'关':{ pinyin:'guān', words:['关门','关闭'] },
+  '给':{ pinyin:'gěi', words:['给我','送给'] },'带':{ pinyin:'dài', words:['带来','带领'] },
+  '问':{ pinyin:'wèn', words:['问题','提问'] },'答':{ pinyin:'dá', words:['回答','答案'] },
+  '知':{ pinyin:'zhī', words:['知道','知识'] },'道':{ pinyin:'dào', words:['知道','道理'] },
+  '认':{ pinyin:'rèn', words:['认识','认真'] },'记':{ pinyin:'jì', words:['记住','记忆'] },
+  '忘':{ pinyin:'wàng', words:['忘记','难忘'] },'天':{ pinyin:'tiān', words:['天气','今天'] },
+  '地':{ pinyin:'dì', words:['地上','地方'] },'日':{ pinyin:'rì', words:['日出','日记'] },
+  '月':{ pinyin:'yuè', words:['月亮','月光'] },'星':{ pinyin:'xīng', words:['星星','星光'] },
+  '云':{ pinyin:'yún', words:['白云','云朵'] },'雨':{ pinyin:'yǔ', words:['下雨','雨水'] },
+  '雪':{ pinyin:'xuě', words:['下雪','雪花'] },'风':{ pinyin:'fēng', words:['大风','风光'] },
+  '雷':{ pinyin:'léi', words:['雷声','雷电'] },'电':{ pinyin:'diàn', words:['电话','电脑'] },
+  '水':{ pinyin:'shuǐ', words:['水果','喝水'] },'火':{ pinyin:'huǒ', words:['火车','着火'] },
+  '山':{ pinyin:'shān', words:['山上','高山'] },'河':{ pinyin:'hé', words:['河水','黄河'] },
+  '海':{ pinyin:'hǎi', words:['大海','海水'] },'湖':{ pinyin:'hú', words:['湖水','湖泊'] },
+  '江':{ pinyin:'jiāng', words:['长江','江河'] },'春':{ pinyin:'chūn', words:['春天','春风'] },
+  '夏':{ pinyin:'xià', words:['夏天','夏日'] },'秋':{ pinyin:'qiū', words:['秋天','秋风'] },
+  '冬':{ pinyin:'dōng', words:['冬天','冬季'] },'红':{ pinyin:'hóng', words:['红色','红花'] },
+  '黄':{ pinyin:'huáng', words:['黄色','黄金'] },'蓝':{ pinyin:'lán', words:['蓝色','蓝天'] },
+  '绿':{ pinyin:'lǜ', words:['绿色','绿叶'] },'白':{ pinyin:'bái', words:['白色','白菜'] },
+  '黑':{ pinyin:'hēi', words:['黑色','黑夜'] },'青':{ pinyin:'qīng', words:['青色','青年'] },
+  '紫':{ pinyin:'zǐ', words:['紫色','紫花'] },'金':{ pinyin:'jīn', words:['金色','黄金'] },
+  '银':{ pinyin:'yín', words:['银色','金银'] },'爸':{ pinyin:'bà', words:['爸爸','爸妈'] },
+  '妈':{ pinyin:'mā', words:['妈妈','爸妈'] },'爷':{ pinyin:'yé', words:['爷爷','老爷'] },
+  '奶':{ pinyin:'nǎi', words:['奶奶','牛奶'] },'哥':{ pinyin:'gē', words:['哥哥','大哥'] },
+  '弟':{ pinyin:'dì', words:['弟弟','兄弟'] },'姐':{ pinyin:'jiě', words:['姐姐','姐妹'] },
+  '妹':{ pinyin:'mèi', words:['妹妹','姐妹'] },'叔':{ pinyin:'shū', words:['叔叔','大叔'] },
+  '姨':{ pinyin:'yí', words:['阿姨','姨妈'] },'家':{ pinyin:'jiā', words:['家人','回家'] },
+  '书':{ pinyin:'shū', words:['书包','读书'] },'笔':{ pinyin:'bǐ', words:['毛笔','铅笔'] },
+  '纸':{ pinyin:'zhǐ', words:['纸张','报纸'] },'字':{ pinyin:'zì', words:['写字','汉字'] },
+  '汉':{ pinyin:'hàn', words:['汉字','汉语'] },'语':{ pinyin:'yǔ', words:['语文','语言'] },
+  '文':{ pinyin:'wén', words:['语文','文化'] },'英':{ pinyin:'yīng', words:['英语','英雄'] },
+  '数':{ pinyin:'shù', words:['数学','数字'] },'校':{ pinyin:'xiào', words:['学校','校园'] },
+  '课':{ pinyin:'kè', words:['上课','课本'] },'考':{ pinyin:'kǎo', words:['考试','思考'] },
+  '试':{ pinyin:'shì', words:['考试','试试'] },'题':{ pinyin:'tí', words:['题目','问题'] },
+  '大':{ pinyin:'dà', words:['大家','大小'] },'小':{ pinyin:'xiǎo', words:['小孩','小心'] },
+  '高':{ pinyin:'gāo', words:['高大','高山'] },'长':{ pinyin:'cháng', words:['长大','成长'] },
+  '新':{ pinyin:'xīn', words:['新年','更新'] },'好':{ pinyin:'hǎo', words:['好人','你好'] },
+  '美':{ pinyin:'měi', words:['美丽','美好'] },'快':{ pinyin:'kuài', words:['快乐','快跑'] },
+  '多':{ pinyin:'duō', words:['多少','很多'] },'少':{ pinyin:'shǎo', words:['多少','减少'] },
+  '我':{ pinyin:'wǒ', words:['我们','我的'] },'你':{ pinyin:'nǐ', words:['你们','你好'] },
+  '他':{ pinyin:'tā', words:['他们','他的'] },'她':{ pinyin:'tā', words:['她们','她的'] },
+  '是':{ pinyin:'shì', words:['是不是','就是'] },'不':{ pinyin:'bù', words:['不是','不错'] },
+  '有':{ pinyin:'yǒu', words:['没有','有用'] },'没':{ pinyin:'méi', words:['没有','没事'] },
+  '在':{ pinyin:'zài', words:['在家','存在'] },'和':{ pinyin:'hé', words:['和好','和平'] },
+  '人':{ pinyin:'rén', words:['人们','好人'] },'年':{ pinyin:'nián', words:['今年','年级'] },
+  '时':{ pinyin:'shí', words:['时间','小时'] },'今':{ pinyin:'jīn', words:['今天','今年'] },
+  '明':{ pinyin:'míng', words:['明天','明白'] },'早':{ pinyin:'zǎo', words:['早上','早起'] },
+  '晚':{ pinyin:'wǎn', words:['晚上','晚饭'] },'花':{ pinyin:'huā', words:['花朵','开花'] },
+  '草':{ pinyin:'cǎo', words:['小草','草地'] },'树':{ pinyin:'shù', words:['树木','大树'] },
+  '叶':{ pinyin:'yè', words:['叶子','树叶'] },'果':{ pinyin:'guǒ', words:['水果','苹果'] },
+  '根':{ pinyin:'gēn', words:['树根','根本'] },'竹':{ pinyin:'zhú', words:['竹子','竹林'] },
+  '狗':{ pinyin:'gǒu', words:['小狗','热狗'] },'猫':{ pinyin:'māo', words:['小猫','花猫'] },
+  '兔':{ pinyin:'tù', words:['小兔','白兔'] },'马':{ pinyin:'mǎ', words:['小马','马路'] },
+  '鸡':{ pinyin:'jī', words:['小鸡','母鸡'] },'鸭':{ pinyin:'yā', words:['鸭子','小鸭'] },
+  '鱼':{ pinyin:'yú', words:['金鱼','鱼儿'] },'鸟':{ pinyin:'niǎo', words:['小鸟','飞鸟'] },
+  '龙':{ pinyin:'lóng', words:['中国龙','龙年'] },'虎':{ pinyin:'hǔ', words:['老虎','虎年'] },
+  '象':{ pinyin:'xiàng', words:['大象','象棋'] },'猴':{ pinyin:'hóu', words:['猴子','猴年'] },
+  '蛇':{ pinyin:'shé', words:['小蛇','毒蛇'] },'羊':{ pinyin:'yáng', words:['山羊','绵羊'] },
+  '牛':{ pinyin:'niú', words:['水牛','牛奶'] },'猪':{ pinyin:'zhū', words:['小猪','猪年'] },
+  '饭':{ pinyin:'fàn', words:['吃饭','米饭'] },'菜':{ pinyin:'cài', words:['白菜','炒菜'] },
+  '肉':{ pinyin:'ròu', words:['猪肉','鸡肉'] },'蛋':{ pinyin:'dàn', words:['鸡蛋','蛋糕'] },
+  '米':{ pinyin:'mǐ', words:['大米','米饭'] },'茶':{ pinyin:'chá', words:['喝茶','茶叶'] },
+  '糖':{ pinyin:'táng', words:['糖果','白糖'] },'路':{ pinyin:'lù', words:['马路','走路'] },
+  '车':{ pinyin:'chē', words:['汽车','火车'] },'机':{ pinyin:'jī', words:['飞机','手机'] },
+  '船':{ pinyin:'chuán', words:['轮船','船上'] },'桥':{ pinyin:'qiáo', words:['大桥','小桥'] },
+  '门':{ pinyin:'mén', words:['门口','大门'] },'窗':{ pinyin:'chuāng', words:['窗户','窗帘'] },
+  '房':{ pinyin:'fáng', words:['房间','厨房'] },'楼':{ pinyin:'lóu', words:['楼上','大楼'] },
+  '国':{ pinyin:'guó', words:['中国','国家'] },'城':{ pinyin:'chéng', words:['城市','进城'] },
+  '村':{ pinyin:'cūn', words:['农村','村子'] },'医':{ pinyin:'yī', words:['医院','医生'] },
+  '药':{ pinyin:'yào', words:['吃药','药品'] },'病':{ pinyin:'bìng', words:['生病','病人'] },
+  '工':{ pinyin:'gōng', words:['工人','工作'] },'作':{ pinyin:'zuò', words:['工作','作业'] },
+  '业':{ pinyin:'yè', words:['作业','毕业'] },'音':{ pinyin:'yīn', words:['音乐','声音'] },
+  '乐':{ pinyin:'yuè', words:['音乐','快乐'] },'画':{ pinyin:'huà', words:['图画','画画'] },
+  '体':{ pinyin:'tǐ', words:['体育','身体'] },'网':{ pinyin:'wǎng', words:['网络','上网'] },
+  '书':{ pinyin:'shū', words:['书包','图书'] },'图':{ pinyin:'tú', words:['图书','地图'] },
+  '老':{ pinyin:'lǎo', words:['老师','老人'] },'师':{ pinyin:'shī', words:['老师','医师'] },
+  '生':{ pinyin:'shēng', words:['学生','生活'] },'活':{ pinyin:'huó', words:['生活','活动'] },
+  '班':{ pinyin:'bān', words:['班级','上班'] },'级':{ pinyin:'jí', words:['年级','班级'] },
+  '名':{ pinyin:'míng', words:['名字','名片'] },'字':{ pinyin:'zì', words:['名字','汉字'] },
+  '朋':{ pinyin:'péng', words:['朋友','好朋友'] },'友':{ pinyin:'yǒu', words:['朋友','好友'] },
+  '父':{ pinyin:'fù', words:['父亲','父母'] },'母':{ pinyin:'mǔ', words:['母亲','父母'] },
+  '儿':{ pinyin:'ér', words:['儿子','儿童'] },'子':{ pinyin:'zǐ', words:['孩子','子女'] },
+  '孩':{ pinyin:'hái', words:['孩子','小孩'] },'宝':{ pinyin:'bǎo', words:['宝贝','宝贝'] },
+  '贝':{ pinyin:'bèi', words:['宝贝','贝壳'] },'贵':{ pinyin:'guì', words:['珍贵','贵重'] },
+  '幸':{ pinyin:'xìng', words:['幸福','幸运'] },'福':{ pinyin:'fú', words:['幸福','福气'] },
+  '安':{ pinyin:'ān', words:['安全','平安'] },'全':{ pinyin:'quán', words:['安全','完全'] },
+  '平':{ pinyin:'píng', words:['平安','平静'] },'静':{ pinyin:'jìng', words:['安静','静止'] },
+  '力':{ pinyin:'lì', words:['力气','努力'] },'气':{ pinyin:'qì', words:['天气','力气'] },
+  '强':{ pinyin:'qiáng', words:['强大','坚强'] },'勇':{ pinyin:'yǒng', words:['勇气','勇敢'] },
+  '敢':{ pinyin:'gǎn', words:['勇敢','大胆'] },'真':{ pinyin:'zhēn', words:['认真','真假'] },
+  '心':{ pinyin:'xīn', words:['爱心','心情'] },'情':{ pinyin:'qíng', words:['心情','感情'] },
+  '感':{ pinyin:'gǎn', words:['感谢','感动'] },'谢':{ pinyin:'xiè', words:['感谢','谢谢'] },
+  '梦':{ pinyin:'mèng', words:['梦想','做梦'] },'想':{ pinyin:'xiǎng', words:['梦想','想法'] },
+  '希':{ pinyin:'xī', words:['希望','希奇'] },'望':{ pinyin:'wàng', words:['希望','盼望'] },
+  '未':{ pinyin:'wèi', words:['未来','未必'] },'来':{ pinyin:'lái', words:['未来','将来'] },
+  '成':{ pinyin:'chéng', words:['成功','成长'] },'功':{ pinyin:'gōng', words:['成功','用功'] },
+  '长':{ pinyin:'zhǎng', words:['成长','生长'] },'努':{ pinyin:'nǔ', words:['努力','努力'] },
+  '力':{ pinyin:'lì', words:['努力','力量'] },'进':{ pinyin:'jìn', words:['进步','前进'] },
+  '步':{ pinyin:'bù', words:['进步','散步'] },'加':{ pinyin:'jiā', words:['加油','加法'] },
+  '油':{ pinyin:'yóu', words:['加油','石油'] },'棒':{ pinyin:'bàng', words:['很棒','棒球'] },
+  '赞':{ pinyin:'zàn', words:['赞美','点赞'] },'美':{ pinyin:'měi', words:['美丽','赞美'] },
+  '丽':{ pinyin:'lì', words:['美丽','华丽'] },'华':{ pinyin:'huá', words:['华丽','中华'] },
+  '辉':{ pinyin:'huī', words:['辉煌','光辉'] },'煌':{ pinyin:'huáng', words:['辉煌','金碧辉煌'] },
+  '光':{ pinyin:'guāng', words:['光明','阳光'] },'明':{ pinyin:'míng', words:['光明','明亮'] },
+  '亮':{ pinyin:'liàng', words:['明亮','闪亮'] },'闪':{ pinyin:'shǎn', words:['闪亮','闪光'] },
+  '彩':{ pinyin:'cǎi', words:['彩虹','精彩'] },'虹':{ pinyin:'hóng', words:['彩虹','彩虹'] },
+  '阳':{ pinyin:'yáng', words:['阳光','太阳'] },'太':{ pinyin:'tài', words:['太阳','太好了'] },
+  '照':{ pinyin:'zhào', words:['照相','照片'] },'片':{ pinyin:'piàn', words:['照片','片段'] },
+};
+
+// ============================================================
+//  汉字展示逻辑
+// ============================================================
+let writer = null;
+
+document.getElementById('charInput').addEventListener('input', function() {
+  const val = this.value.trim();
+  if (val.length > 0) processChar(val[0]);
+});
+document.getElementById('charInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    const val = this.value.trim();
+    if (val.length > 0) processChar(val[0]);
+  }
+});
+
+function processChar(char) {
+  const info = charDatabase[char];
+  const errEl = document.getElementById('errorMsg');
+  const ctrlEl = document.getElementById('controls');
+  errEl.textContent = '';
+  if (info) {
+    ctrlEl.style.display = 'flex';
+    renderWriter(char);
+    document.getElementById('pinyinShow').textContent = info.pinyin;
+    document.getElementById('wordsShow').innerHTML =
+      info.words.map(w => `<span class="word-block">${w}</span>`).join('');
+  } else {
+    errEl.textContent = `暂不支持汉字 "${char}" 的笔顺数据`;
+    document.getElementById('pinyinShow').textContent = '';
+    document.getElementById('wordsShow').innerHTML = '';
+    ctrlEl.style.display = 'none';
+    document.getElementById('character-target').innerHTML = '<div class="placeholder-char">字</div>';
+  }
+}
+
+function renderWriter(char) {
+  const t = pickThemeByTime();
+  document.getElementById('character-target').innerHTML = '';
+  writer = HanziWriter.create('character-target', char, {
+    width: 260, height: 260, padding: 12,
+    showOutline: true, showCharacter: false,
+    strokeColor: t.strokeColor,
+    outlineColor: t.outlineColor,
+    strokeAnimationSpeed: 1,
+    delayBetweenStrokes: 150,
+    onLoadCharDataSuccess: () => writer.animateCharacter(),
+    onLoadCharDataError: () => {
+      document.getElementById('errorMsg').textContent = '笔顺数据加载失败，请检查网络';
+    }
+  });
+}
+
+function replayAnim() {
+  if (writer) { writer.hideCharacter(); writer.animateCharacter(); }
+}
+function showFullChar() {
+  if (writer) writer.showCharacter();
+}
+
+// ============================================================
+//  PWA / 添加到桌面
+// ============================================================
+let deferredPrompt = null;
+
+// 注册 Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+// Android / Desktop Chrome
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-btn').style.display = 'inline-flex';
+  document.getElementById('install-banner').style.display = 'flex';
+});
+
+function installApp() {
+  document.getElementById('install-banner').style.display = 'none';
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('install-btn').style.display = 'none';
     });
-  </script>
+  }
+}
+
+function dismissBanner() {
+  document.getElementById('install-banner').style.display = 'none';
+}
+
+// iOS Safari
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+function isInStandaloneMode() {
+  return window.navigator.standalone === true;
+}
+if (isIOS() && !isInStandaloneMode()) {
+  document.getElementById('ios-install-btn').style.display = 'inline-flex';
+}
+
+function showIOSHint() {
+  const hint = document.getElementById('ios-hint');
+  hint.style.display = hint.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// 点击任意处关闭 iOS 提示
+document.addEventListener('click', (e) => {
+  const hint = document.getElementById('ios-hint');
+  if (hint.style.display === 'flex' && !e.target.closest('#ios-hint') && !e.target.closest('#ios-install-btn')) {
+    hint.style.display = 'none';
+  }
+});
+
+// 自动聚焦
+window.addEventListener('load', () => {
+  document.getElementById('charInput').focus();
+});
+</script>
 </body>
 </html>
