@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="元宝学习小世界">
   <meta name="theme-color" content="#4a8c2a">
   <title>元宝学习小世界</title>
-  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <script src="https://unpkg.com/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -1041,8 +1041,8 @@ charInput.addEventListener('input', function() {
   }
 });
 
-async function renderWriter(char) {
-  console.log('[renderWriter] 创建汉字:', char);
+function renderWriter(char) {
+  console.log('[renderWriter] 开始渲染汉字:', char);
 
   if (typeof HanziWriter === 'undefined') {
     console.error('[renderWriter] ❌ HanziWriter 未定义');
@@ -1058,26 +1058,46 @@ async function renderWriter(char) {
   const isMobile = window.innerWidth <= 480;
   const size = isMobile ? 220 : 260;
 
-  try {
-    // HanziWriter 3.x: create() 返回 Promise，必须 await 拿到实例
-    const instance = await HanziWriter.create('character-target', char, {
-      width: size,
-      height: size,
-      padding: Math.round(size * 0.045),
-      showOutline: true,
-      showCharacter: false,
-      strokeColor: theme.strokeColor,
-      outlineColor: theme.outlineColor,
-      strokeAnimationSpeed: 1,
-      delayBetweenStrokes: 150,
-    });
-    writer = instance;
-    console.log('[renderWriter] ✅ 实例创建成功，开始动画');
-    writer.animateCharacter();
-  } catch(err) {
-    console.error('[renderWriter] ❌ 创建或加载失败:', err);
-    errorMsg.textContent = '笔顺数据加载失败，请检查网络';
-  }
+  // HanziWriter.create() 同步返回实例，但字符数据从CDN异步加载
+  // 必须在 onLoadCharDataSuccess 回调里才能调用 animateCharacter()
+  writer = HanziWriter.create('character-target', char, {
+    width: size,
+    height: size,
+    padding: Math.round(size * 0.045),
+    showOutline: true,
+    showCharacter: false,
+    strokeColor: theme.strokeColor,
+    outlineColor: theme.outlineColor,
+    strokeAnimationSpeed: 1,
+    delayBetweenStrokes: 150,
+    charDataLoader: function(char, onLoad, onError) {
+      var url = 'https://unpkg.com/hanzi-writer-data@latest/' + char + '.json';
+      fetch(url)
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data) { onLoad(data); })
+        .catch(function(err) {
+          console.error('[charDataLoader] 加载失败，尝试 jsdelivr:', err);
+          // 回退到 jsdelivr
+          fetch('https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/' + char + '.json')
+            .then(function(r) { return r.json(); })
+            .then(function(data) { onLoad(data); })
+            .catch(function(e) { onError(e); });
+        });
+    },
+    onLoadCharDataSuccess: function(data) {
+      console.log('[renderWriter] ✅ 字符数据加载成功，开始动画', char);
+      writer.animateCharacter();
+    },
+    onLoadCharDataError: function(reason) {
+      console.error('[renderWriter] ❌ 字符数据加载失败:', reason);
+      errorMsg.textContent = '笔顺数据加载失败（CDN 网络问题），请刷新重试';
+      charTarget.innerHTML = '<div class="placeholder-char">' + char + '</div>';
+    }
+  });
+  console.log('[renderWriter] writer 实例已创建，等待数据加载...');
 }
 
 document.getElementById('btn-replay').addEventListener('click', function() {
