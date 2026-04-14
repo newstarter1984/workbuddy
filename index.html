@@ -285,8 +285,9 @@
     }
     .mc-btn {
       padding: 10px 18px;
-      font-family: 'Press Start 2P', monospace;
-      font-size: 0.42rem;
+      font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+      font-size: 0.85rem;
+      font-weight: bold;
       border: none;
       cursor: pointer;
       border-bottom: var(--pixel) solid rgba(0,0,0,0.5);
@@ -1040,10 +1041,9 @@ charInput.addEventListener('input', function() {
   }
 });
 
-function renderWriter(char) {
+async function renderWriter(char) {
   console.log('[renderWriter] 创建汉字:', char);
 
-  // 检查 HanziWriter 是否可用
   if (typeof HanziWriter === 'undefined') {
     console.error('[renderWriter] ❌ HanziWriter 未定义');
     errorMsg.textContent = '汉字书写库加载失败，请刷新页面重试';
@@ -1059,7 +1059,8 @@ function renderWriter(char) {
   const size = isMobile ? 220 : 260;
 
   try {
-    writer = HanziWriter.create('character-target', char, {
+    // HanziWriter 3.x: create() 返回 Promise，必须 await 拿到实例
+    const instance = await HanziWriter.create('character-target', char, {
       width: size,
       height: size,
       padding: Math.round(size * 0.045),
@@ -1069,20 +1070,13 @@ function renderWriter(char) {
       outlineColor: theme.outlineColor,
       strokeAnimationSpeed: 1,
       delayBetweenStrokes: 150,
-      // ★ 关键：字符数据加载成功后立即播放动画
-      onLoadCharDataSuccess: function() {
-        console.log('[renderWriter] ✅ 字符数据加载成功，开始动画');
-        if (writer) writer.animateCharacter();
-      },
-      onLoadCharDataError: function(reason) {
-        console.error('[renderWriter] ❌ 字符数据加载失败:', reason);
-        errorMsg.textContent = '笔顺数据加载失败（可能是网络问题）';
-      }
     });
-    console.log('[renderWriter] writer 实例创建完成，等待数据加载...');
+    writer = instance;
+    console.log('[renderWriter] ✅ 实例创建成功，开始动画');
+    writer.animateCharacter();
   } catch(err) {
-    console.error('[renderWriter] 创建 writer 异常:', err);
-    errorMsg.textContent = '汉字展示初始化失败：' + err.message;
+    console.error('[renderWriter] ❌ 创建或加载失败:', err);
+    errorMsg.textContent = '笔顺数据加载失败，请检查网络';
   }
 }
 
