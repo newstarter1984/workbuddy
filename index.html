@@ -1009,68 +1009,80 @@ function resetDisplay() {
   writer = null;
 }
 
-// 输入事件（只用 input 事件，避免 keypress/keydown 重复触发）
+// 输入事件 + 输入法组合守卫
+// compositionstart/end 用于屏蔽拼音输入法中间状态
+let isComposing = false;
+
+charInput.addEventListener('compositionstart', function() {
+  isComposing = true;
+});
+
+charInput.addEventListener('compositionend', function() {
+  isComposing = false;
+  // 组合结束后触发显示
+  const val = this.value.trim();
+  console.log('[compositionend] 输入法确认，值:', val);
+  if (val.length > 0) {
+    showChar(val[0]);
+  } else {
+    resetDisplay();
+  }
+});
+
 charInput.addEventListener('input', function() {
-  console.log('[输入事件] 触发，值:', this.value);
+  if (isComposing) return; // 正在用输入法组合，跳过
+  console.log('[input事件] 触发，值:', this.value);
   const val = this.value.trim();
   if (val.length > 0) {
     showChar(val[0]);
   } else {
-    // 清空状态，显示占位符
     resetDisplay();
   }
 });
 
 function renderWriter(char) {
   console.log('[renderWriter] 创建汉字:', char);
-  
+
   // 检查 HanziWriter 是否可用
   if (typeof HanziWriter === 'undefined') {
-    console.error('[renderWriter] ❌ HanziWriter 未定义，无法创建');
+    console.error('[renderWriter] ❌ HanziWriter 未定义');
     errorMsg.textContent = '汉字书写库加载失败，请刷新页面重试';
     return;
   }
-  
-  const theme = pickTheme();
+
+  // 清理旧实例并重置容器
+  writer = null;
   charTarget.innerHTML = '';
-  
-  // 检测是否为移动端，使用合适的尺寸
+
+  const theme = pickTheme();
   const isMobile = window.innerWidth <= 480;
   const size = isMobile ? 220 : 260;
-  const padding = isMobile ? 10 : 12;
-  
-  console.log('[renderWriter] 尺寸:', size, '移动端:', isMobile);
-  
-  // 清理旧的 writer 实例
-  if (writer) {
-    writer = null;
-  }
-  
+
   try {
     writer = HanziWriter.create('character-target', char, {
       width: size,
       height: size,
-      padding: padding,
+      padding: Math.round(size * 0.045),
       showOutline: true,
       showCharacter: false,
       strokeColor: theme.strokeColor,
       outlineColor: theme.outlineColor,
       strokeAnimationSpeed: 1,
-      delayBetweenStrokes: 150
-    });
-    
-    // HanziWriter 3.x 会自动加载数据，成功后触发动画
-    // 等待一小段时间让 HanziWriter 完成初始化
-    setTimeout(function() {
-      if (writer && writer.animateCharacter) {
-        console.log('[renderWriter] 开始笔顺动画');
-        writer.animateCharacter();
+      delayBetweenStrokes: 150,
+      // ★ 关键：字符数据加载成功后立即播放动画
+      onLoadCharDataSuccess: function() {
+        console.log('[renderWriter] ✅ 字符数据加载成功，开始动画');
+        if (writer) writer.animateCharacter();
+      },
+      onLoadCharDataError: function(reason) {
+        console.error('[renderWriter] ❌ 字符数据加载失败:', reason);
+        errorMsg.textContent = '笔顺数据加载失败（可能是网络问题）';
       }
-    }, 300);
-    
+    });
+    console.log('[renderWriter] writer 实例创建完成，等待数据加载...');
   } catch(err) {
-    console.error('[renderWriter] 创建 writer 失败:', err);
-    errorMsg.textContent = '汉字展示初始化失败';
+    console.error('[renderWriter] 创建 writer 异常:', err);
+    errorMsg.textContent = '汉字展示初始化失败：' + err.message;
   }
 }
 
